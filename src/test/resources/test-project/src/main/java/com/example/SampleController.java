@@ -4,6 +4,7 @@ import com.example.dto.ApiResult;
 import com.example.dto.OrderDto;
 import com.example.dto.UserDto;
 import com.example.dto.UserStatus;
+import com.example.exception.AuthException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -33,8 +34,7 @@ public class SampleController {
      *
      * @param id 사용자 ID
      * @return 사용자 정보
-     * @response 200 성공
-     * @response 404 사용자 없음
+     * @error UserNotFoundException
      * @group 사용자
      * @auth true
      */
@@ -51,7 +51,7 @@ public class SampleController {
      * @group 사용자
      */
     @GetMapping(name = "사용자 상태 조회", value = "/{id}/status")
-    public UserStatus getUserStatus(@PathVariable("id") Long id) {
+    public UserStatus getUserStatus(@PathVariable("id") Long id) throws AuthException {
         return null;
     }
 

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "gradle-restdoc-generator",
+  "description": "Gradle plugin that auto-generates REST API documentation (JSON, OpenAPI 3.0, Postman) from Spring Boot @RestController classes using Javadoc-based scanning and reflection",
+  "branch": "master",
+  "folders": [
+    "src/main/java",
+    "src/main/resources/template"
+  ],
+  "excludeFolders": [
+    "src/test",
+    ".gradle",
+    "build"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "LICENSE.md"
+  ],
+  "rules": [
+    "This is a Gradle plugin — use 'restMetaGenerator' DSL block in build.gradle for configuration",
+    "Requires Java 17+ and Spring Boot @RestController annotations",
+    "Use Javadoc custom tags (@response, @error, @throws, @group, @auth, @header) on controller methods",
+    "errorCodeClass and errorResponseClass follow two-tier resolution: DSL override first, then framework default",
+    "The execution pipeline runs in order: ErrorCodeScanner → RestApiDocGenerator → ErrorJSON → OpenAPI → SpecBundle → Postman"
+  ]
+}

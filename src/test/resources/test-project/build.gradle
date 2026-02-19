@@ -22,4 +22,10 @@ restMetaGenerator {
     serviceName = 'Test Service'
     apiServerUrl = 'http://localhost:8080'
     serviceVersion = 'v1.0'
+
+    // 에러 코드 클래스
+    errorCodeClass = 'com.example.exception.ErrorCode'
+
+    // 에러 응답 모델 클래스
+    errorResponseClass = 'com.example.dto.ApiErrorResponse'
 }

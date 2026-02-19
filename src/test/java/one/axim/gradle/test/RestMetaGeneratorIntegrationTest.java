@@ -565,7 +565,251 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(hasEnum, "models should contain at least one Enum type");
     }
 
+    // --- Error Code tests ---
+
+    @Test
+    void testErrorJsonGenerated() {
+        Path errorsFile = tempDir.resolve("build/docs/error/errors.json");
+        assertTrue(Files.exists(errorsFile), "error/errors.json should be generated");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorGroups() throws Exception {
+        List<Map<String, Object>> errors = readErrorsJson();
+        assertEquals(2, errors.size(), "should have 2 error groups (AuthException, UserNotFoundException)");
+
+        List<String> exceptionNames = errors.stream()
+                .map(g -> (String) g.get("exception"))
+                .sorted()
+                .toList();
+        assertEquals(List.of("AuthException", "UserNotFoundException"), exceptionNames);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorCodesInGroup() throws Exception {
+        List<Map<String, Object>> errors = readErrorsJson();
+
+        Map<String, Object> userGroup = errors.stream()
+                .filter(g -> "UserNotFoundException".equals(g.get("exception")))
+                .findFirst().orElse(null);
+        assertNotNull(userGroup, "UserNotFoundException group should exist");
+
+        List<Map<String, Object>> codes = (List<Map<String, Object>>) userGroup.get("codes");
+        assertNotNull(codes, "codes should not be null");
+        assertEquals(2, codes.size(), "UserNotFoundException should have 2 error codes");
+
+        List<String> codeValues = codes.stream()
+                .map(c -> (String) c.get("code"))
+                .sorted()
+                .toList();
+        assertTrue(codeValues.contains("USER_001"), "should contain USER_001");
+        assertTrue(codeValues.contains("USER_002"), "should contain USER_002");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorHttpStatus() throws Exception {
+        List<Map<String, Object>> errors = readErrorsJson();
+
+        for (Map<String, Object> group : errors) {
+            String exception = (String) group.get("exception");
+            int status = ((Number) group.get("status")).intValue();
+            if ("UserNotFoundException".equals(exception)) {
+                assertEquals(404, status, "UserNotFoundException should have status 404");
+            } else if ("AuthException".equals(exception)) {
+                assertEquals(401, status, "AuthException should have status 401");
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorMessageResolution() throws Exception {
+        List<Map<String, Object>> errors = readErrorsJson();
+
+        Map<String, Object> userGroup = errors.stream()
+                .filter(g -> "UserNotFoundException".equals(g.get("exception")))
+                .findFirst().orElse(null);
+        assertNotNull(userGroup);
+
+        List<Map<String, Object>> codes = (List<Map<String, Object>>) userGroup.get("codes");
+        Map<String, Object> userNotFound = codes.stream()
+                .filter(c -> "USER_001".equals(c.get("code")))
+                .findFirst().orElse(null);
+        assertNotNull(userNotFound, "USER_001 code should exist");
+
+        String message = (String) userNotFound.get("message");
+        assertNotNull(message, "message should not be null");
+        assertNotEquals(userNotFound.get("messageKey"), message,
+                "message should be resolved, not the raw messageKey");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleContainsErrors() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) bundle.get("errors");
+        assertNotNull(errors, "spec-bundle should contain errors");
+        assertFalse(errors.isEmpty(), "errors should not be empty");
+        assertEquals(2, errors.size(), "should have 2 error groups in spec-bundle");
+    }
+
+    // --- @error / throws → API errors tests ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorTagPopulatesResponseStatus() throws Exception {
+        // @error UserNotFoundException → responseStatus에 "404" 포함
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 상세 조회");
+        assertNotNull(api, "사용자 상세 조회 API should exist");
+
+        Map<String, String> responseStatus = (Map<String, String>) api.get("responseStatus");
+        assertNotNull(responseStatus, "responseStatus should not be null");
+        assertTrue(responseStatus.containsKey("404"),
+                "responseStatus should contain 404 from @error UserNotFoundException");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorTagPopulatesErrorsList() throws Exception {
+        // @error UserNotFoundException → errors 필드에 ErrorGroupDefinition 포함
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 상세 조회");
+        assertNotNull(api);
+
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) api.get("errors");
+        assertNotNull(errors, "errors field should not be null for @error tagged method");
+        assertFalse(errors.isEmpty(), "errors should not be empty");
+
+        boolean hasUserNotFound = errors.stream()
+                .anyMatch(e -> "UserNotFoundException".equals(e.get("exception")));
+        assertTrue(hasUserNotFound, "errors should contain UserNotFoundException");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testThrowsAutoDetection() throws Exception {
+        // throws AuthException → errors에 AuthException 포함, responseStatus에 "401"
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 상태 조회");
+        assertNotNull(api, "사용자 상태 조회 API should exist");
+
+        List<Map<String, Object>> errors = (List<Map<String, Object>>) api.get("errors");
+        assertNotNull(errors, "errors should not be null for method with throws clause");
+
+        boolean hasAuth = errors.stream()
+                .anyMatch(e -> "AuthException".equals(e.get("exception")));
+        assertTrue(hasAuth, "errors should contain AuthException from throws clause");
+
+        Map<String, String> responseStatus = (Map<String, String>) api.get("responseStatus");
+        assertNotNull(responseStatus);
+        assertTrue(responseStatus.containsKey("401"),
+                "responseStatus should contain 401 from throws AuthException");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testMethodWithoutErrorsHasNoErrorsField() throws Exception {
+        // 에러 없는 메서드는 errors=null
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 목록 조회");
+        assertNotNull(api, "사용자 목록 조회 API should exist");
+
+        assertNull(api.get("errors"),
+                "errors should be null for method without @error or throws");
+    }
+
+    // --- Error Response tests ---
+
+    @Test
+    void testErrorResponseJsonGenerated() {
+        Path errorResponseFile = tempDir.resolve("build/docs/error/error-response.json");
+        assertTrue(Files.exists(errorResponseFile), "error/error-response.json should be generated");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testErrorResponseFields() throws Exception {
+        Path errorResponseFile = tempDir.resolve("build/docs/error/error-response.json");
+        String json = Files.readString(errorResponseFile);
+        Map<String, Object> model = gson.fromJson(json, Map.class);
+
+        assertEquals("ApiErrorResponse", model.get("name"),
+                "error response model name should be ApiErrorResponse");
+
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) model.get("fields");
+        assertNotNull(fields, "fields should not be null");
+
+        List<String> fieldNames = fields.stream()
+                .map(f -> (String) f.get("name"))
+                .toList();
+        assertTrue(fieldNames.contains("status"), "should contain status field");
+        assertTrue(fieldNames.contains("code"), "should contain code field");
+        assertTrue(fieldNames.contains("message"), "should contain message field");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleContainsErrorResponse() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+
+        Map<String, Object> errorResponse = (Map<String, Object>) bundle.get("errorResponse");
+        assertNotNull(errorResponse, "spec-bundle should contain errorResponse");
+        assertEquals("ApiErrorResponse", errorResponse.get("name"),
+                "errorResponse name should be ApiErrorResponse");
+
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) errorResponse.get("fields");
+        assertNotNull(fields, "errorResponse fields should not be null");
+
+        List<String> fieldNames = fields.stream()
+                .map(f -> (String) f.get("name"))
+                .toList();
+        assertTrue(fieldNames.contains("status"), "should contain status field");
+        assertTrue(fieldNames.contains("code"), "should contain code field");
+        assertTrue(fieldNames.contains("message"), "should contain message field");
+    }
+
     // --- helpers ---
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> readErrorsJson() throws Exception {
+        Path errorsFile = tempDir.resolve("build/docs/error/errors.json");
+        String json = Files.readString(errorsFile);
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        return gson.fromJson(json, listType);
+    }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> readSpecBundle() throws Exception {

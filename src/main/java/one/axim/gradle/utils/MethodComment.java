@@ -34,13 +34,14 @@ public class MethodComment {
             } else {
                 // 커스텀 태그 (response, header 등): 첫 번째 단어를 name으로 분리
                 String content = blockTag.getContent().toText().trim();
-                if ("response".equals(tagName) || "header".equals(tagName)) {
+                if ("response".equals(tagName) || "header".equals(tagName) || "error".equals(tagName)) {
                     int pos = content.indexOf(" ");
                     if (pos != -1) {
                         name = content.substring(0, pos);
                         value = content.substring(pos + 1).trim();
                     } else {
-                        value = content;
+                        name = content;
+                        value = "";
                     }
                 } else {
                     value = content;

@@ -11,6 +11,28 @@ import org.gradle.api.tasks.SourceSet;
 import java.io.File;
 import java.util.Arrays;
 
+/**
+ * Gradle plugin entry point for {@code gradle-restdoc-generator}.
+ *
+ * <p>Registers the {@code restMetaGenerator} task that scans Spring Boot
+ * {@code @RestController} classes and generates REST API documentation
+ * (JSON metadata, OpenAPI 3.0 spec, spec-bundle, and Postman collections).
+ *
+ * <h3>Usage in {@code build.gradle}:</h3>
+ * <pre>{@code
+ * plugins {
+ *     id 'gradle-restdoc-generator' version '2.0.5'
+ * }
+ *
+ * restMetaGenerator {
+ *     documentPath = 'build/docs'
+ *     basePackage  = 'com.example'
+ *     serviceId    = 'my-service'
+ * }
+ * }</pre>
+ *
+ * @see RestMetaGeneratorTask
+ */
 public class DocumentPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {

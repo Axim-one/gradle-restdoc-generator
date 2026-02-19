@@ -2,16 +2,32 @@ package one.axim.gradle.data;
 
 import java.util.List;
 
+/**
+ * Service-level metadata for the API documentation.
+ *
+ * <p>Configured via the {@code restMetaGenerator} DSL block and serialized
+ * as {@code {serviceId}.json} in the output directory. Also included in
+ * {@code spec-bundle.json} and OpenAPI {@code info} section.
+ *
+ * @see RestMetaGeneratorTask
+ */
 public class ServiceDefinition {
 
+    /** Unique service identifier. Used as the JSON filename. */
     private String serviceId;
+    /** Display name of the service. */
     private String name;
+    /** Service introduction text (supports Markdown, loaded from {@code introductionFile}). */
     private String introduction;
+    /** Base URL of the API server (e.g., {@code "https://api.example.com"}). */
     private String apiServerUrl;
+    /** API version (default: {@code "v1.0"}). */
     private String version = "v1.0";
+    /** Postman environment variable definitions. */
     private List<ENVVariableDefinition> envVariable;
+    /** Common HTTP headers applied to all endpoints. */
     private List<APIHeader> headers;
-
+    /** Authentication configuration. */
     private APIAuthData auth;
 
     public String getServiceId() {

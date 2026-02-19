@@ -19,6 +19,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.stream.Collectors;
+import one.axim.gradle.data.ErrorGroupDefinition;
 
 public class RestApiDocGenerator {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -34,6 +35,8 @@ public class RestApiDocGenerator {
     private ClassUtils baseClassUtil;
 
     private Set<String> basePaths;
+
+    private Map<String, ErrorGroupDefinition> errorGroupMap = Collections.emptyMap();
 
     private Map<Class<?>, Set<Method>> methodMap = new TreeMap<Class<?>, Set<Method>>(new Comparator<Class<?>>() {
         @Override
@@ -51,6 +54,13 @@ public class RestApiDocGenerator {
         this.basePaths = new HashSet<>();
 
         prepareClassesAndMethods();
+    }
+
+    public void setErrorGroups(List<ErrorGroupDefinition> groups) {
+        this.errorGroupMap = new HashMap<>();
+        for (ErrorGroupDefinition g : groups) {
+            errorGroupMap.put(g.getException(), g);
+        }
     }
 
     /**
@@ -460,6 +470,7 @@ public class RestApiDocGenerator {
         String className = "";
         boolean isAuth = false;
         Map<String, String> resStatusMap = new HashMap<>();
+        List<ErrorGroupDefinition> methodErrors = new ArrayList<>();
 
         if (commentTags != null) {
             for (CommentTag commentTag : commentTags) {
@@ -522,9 +533,31 @@ public class RestApiDocGenerator {
                     className = commentTag.getValue() == null ? "" : commentTag.getValue().trim();
 
                     System.out.println("class name :: " + className);
+                } else if ("error".equals(commentTag.getTag()) || "throws".equals(commentTag.getTag())) {
+                    String exName = commentTag.getName();
+                    if (exName != null && errorGroupMap.containsKey(exName)) {
+                        ErrorGroupDefinition eg = errorGroupMap.get(exName);
+                        methodErrors.add(eg);
+                        resStatusMap.put(String.valueOf(eg.getStatus()), eg.getGroup());
+                    }
                 }
             }
         }
+
+        // throws 자동 감지 (메서드 시그니처의 throws 절)
+        for (Class<?> exType : method.getExceptionTypes()) {
+            String simpleName = exType.getSimpleName();
+            if (errorGroupMap.containsKey(simpleName)) {
+                boolean alreadyAdded = methodErrors.stream()
+                        .anyMatch(e -> e.getException().equals(simpleName));
+                if (!alreadyAdded) {
+                    ErrorGroupDefinition eg = errorGroupMap.get(simpleName);
+                    methodErrors.add(eg);
+                    resStatusMap.put(String.valueOf(eg.getStatus()), eg.getGroup());
+                }
+            }
+        }
+
         String returnValueType = method.getReturnType().getCanonicalName();
 
         APIDefinition apiDefinition = new APIDefinition();
@@ -628,6 +661,10 @@ public class RestApiDocGenerator {
 
         if (!resStatusMap.isEmpty()) {
             apiDefinition.setResponseStatus(resStatusMap);
+        }
+
+        if (!methodErrors.isEmpty()) {
+            apiDefinition.setErrors(methodErrors);
         }
 
         apiDefinitionArrayList.add(apiDefinition);

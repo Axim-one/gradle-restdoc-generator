@@ -1,21 +1,38 @@
 package one.axim.gradle.data;
 
+/**
+ * A request parameter in an {@link APIDefinition}.
+ *
+ * <p>Represents path variables, query parameters, request body fields,
+ * or auto-generated pagination parameters.
+ *
+ * @see APIDefinition
+ * @see APIParameterKind
+ */
 public class APIParameter {
 
+    /** Parameter name (e.g., {@code "userId"}, {@code "page"}). */
     private String name;
 
+    /** Simple type name (e.g., {@code "Long"}, {@code "String"}). */
     private String type;
 
+    /** Fully qualified class path (e.g., {@code "java.lang.Long"}). */
     private String classPath;
 
+    /** Parameter description (from {@code @param} Javadoc tag). */
     private String description;
 
+    /** Whether this parameter is optional (default: {@code false}). */
     private boolean isOptional = false;
 
+    /** Default value for this parameter (e.g., {@code "0"} for page). */
     private String defaultValue;
 
+    /** Parameter location: PATH, QUERY, or BODY. */
     private APIParameterKind parameterKind;
 
+    /** Whether this parameter is an enum type. */
     private boolean isEnum = false;
 
     public String getName() {

@@ -2,7 +2,9 @@ package one.axim.gradle;
 
 import one.axim.gradle.data.APIDefinition;
 import one.axim.gradle.data.APIModelDefinition;
+import one.axim.gradle.data.ErrorGroupDefinition;
 import one.axim.gradle.data.ServiceDefinition;
+import com.google.gson.reflect.TypeToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
@@ -14,6 +16,28 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
 
+/**
+ * Generates a unified {@code spec-bundle.json} that combines all documentation into a single file.
+ *
+ * <p>The spec-bundle is designed for API documentation UIs to load all data in a single HTTP request.
+ * It aggregates outputs from the entire generation pipeline.
+ *
+ * <h3>Bundle structure:</h3>
+ * <pre>{@code
+ * {
+ *   "service":       { serviceId, name, apiServerUrl, version, introduction, auth, headers },
+ *   "apis":          [ APIDefinition, ... ],
+ *   "models":        { "com.example.dto.UserDto": APIModelDefinition, ... },
+ *   "errors":        [ ErrorGroupDefinition, ... ],
+ *   "errorResponse": APIModelDefinition   // present only if error-response.json exists
+ * }
+ * }</pre>
+ *
+ * @see RestMetaGeneratorTask
+ * @see APIDefinition
+ * @see APIModelDefinition
+ * @see ErrorGroupDefinition
+ */
 public class SpecBundleGenerator {
 
     private static final Gson gson = new Gson();
@@ -35,6 +59,12 @@ public class SpecBundleGenerator {
         bundle.put("service", buildServiceMap());
         bundle.put("apis", loadAllApis());
         bundle.put("models", loadAllModels());
+        bundle.put("errors", loadErrors());
+
+        Object errorResponse = loadErrorResponse();
+        if (errorResponse != null) {
+            bundle.put("errorResponse", errorResponse);
+        }
 
         File outputFile = new File(this.documentPath, "spec-bundle.json");
         String json = objectMapper.writeValueAsString(bundle);
@@ -93,5 +123,27 @@ public class SpecBundleGenerator {
             }
         }
         return models;
+    }
+
+    private List<ErrorGroupDefinition> loadErrors() {
+        File errorsFile = new File(this.documentPath + File.separator + "error" + File.separator + "errors.json");
+        if (!errorsFile.exists()) return Collections.emptyList();
+        try {
+            String json = FileUtils.readFileToString(errorsFile, "UTF-8");
+            return gson.fromJson(json, new TypeToken<List<ErrorGroupDefinition>>(){}.getType());
+        } catch (IOException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private Object loadErrorResponse() {
+        File file = new File(this.documentPath + File.separator + "error" + File.separator + "error-response.json");
+        if (!file.exists()) return null;
+        try {
+            String json = FileUtils.readFileToString(file, "UTF-8");
+            return gson.fromJson(json, APIModelDefinition.class);
+        } catch (IOException e) {
+            return null;
+        }
     }
 }

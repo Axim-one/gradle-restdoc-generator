@@ -38,6 +38,10 @@ The `restMetaGenerator` task accepts these DSL properties:
 - `serviceVersion` — API version prefix (default `v1.0`)
 - `introductionFile` — path to a markdown file whose content becomes the service introduction
 
+**Error code/response (two-tier resolution: DSL override → framework default):**
+- `errorCodeClass` — FQCN of the ErrorCode class to scan (default: `one.axim.framework.rest.exception.ErrorCode`)
+- `errorResponseClass` — FQCN of the error response DTO (default: `one.axim.framework.rest.model.ApiError`) *(v2.0.5+)*
+
 **Nested DSL methods:**
 - `auth { type, headerKey, value, descriptionFile }` — authentication configuration
 - `header(name, defaultValue, description)` — add a common header
@@ -45,13 +49,17 @@ The `restMetaGenerator` task accepts these DSL properties:
 
 ### Pipeline (executed in `RestMetaGeneratorTask.deplyTask()`)
 
-1. **Scan & Generate JSON** — `RestApiDocGenerator` uses Guava `ClassPath` + reflection to find `@RestController` classes, then parses their Java source files with `JavaSourceParser` (backed by `javaparser`) to extract Javadoc comments, parameter names, and type info. Outputs per-controller API JSON and per-model JSON under `documentPath/api/` and `documentPath/model/`.
+1. **Error Code Scan** — `ErrorCodeScanner.scanAndReturn()` scans exception classes for `ErrorCode` fields and returns `List<ErrorGroupDefinition>` (no file I/O). This runs **before** API generation so error groups are available for per-API linking.
 
-2. **Postman sync** — `PostmanSpecConverter` receives the `ServiceDefinition` (built from Gradle DSL) and reads the generated API JSON, converts to Postman Collection v2.1 format, and creates/updates collections and environments via Postman API. Merges existing request values (headers, query params, body, path variables) from previously saved collections.
+2. **Scan & Generate JSON** — `RestApiDocGenerator` uses Guava `ClassPath` + reflection to find `@RestController` classes, then parses their Java source files with `JavaSourceParser` (backed by `javaparser`) to extract Javadoc comments, parameter names, and type info. During generation, `@error`/`@throws` tags and method `throws` clauses are matched against the error group map to populate `APIDefinition.errors` and `responseStatus`. Outputs per-controller API JSON and per-model JSON under `documentPath/api/` and `documentPath/model/`.
+
+3. **Error Code Write** — `ErrorCodeScanner.writeResults()` writes `errors.json` and `error-response.json` under `documentPath/error/`.
+
+4. **OpenAPI / SpecBundle / Postman sync** — `OpenApiSpecConverter`, `SpecBundleGenerator`, and `PostmanSpecConverter` consume the generated JSON to produce OpenAPI 3.0 spec, bundled JSON, and Postman collections.
 
 ### Key Packages
 
-- `one.axim.gradle` — Plugin, task, and top-level generators
+- `one.axim.gradle` — Plugin, task, and top-level generators (`ErrorCodeScanner` exposes `scanAndReturn()` / `writeResults()` split for two-phase execution)
 - `one.axim.gradle.data` — Domain data classes (`APIDefinition`, `APIParameter`, `ServiceDefinition`, etc.)
 - `one.axim.gradle.generator` — `ModelGenerator` (builds model definitions for Postman markdown), `LanguageType` enum
 - `one.axim.gradle.generator.data` — Data models (`FieldData`, `ModelData`, `ModelDefinition`, etc.)
@@ -80,7 +88,11 @@ The generator extracts custom Javadoc tags from controller methods:
 - `@param` — parameter descriptions
 - `@return` — return value description
 - `@response {statusCode} {description}` — HTTP response status documentation
+- `@error {ExceptionClassName}` — links an error group to this API (populates `errors` field and `responseStatus`)
+- `@throws {ExceptionClassName}` — standard Javadoc tag, also links error group (same as `@error`)
 - `@group` — API grouping name
 - `@auth true` — marks endpoint as requiring authentication
 - `@header {name} {description}` — custom header documentation
 - `@className` — override for generated class name
+
+Additionally, method `throws` clauses in the Java signature are **auto-detected** via reflection and matched against scanned error groups — no Javadoc tag needed.

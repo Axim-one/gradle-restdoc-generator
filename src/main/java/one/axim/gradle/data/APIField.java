@@ -1,11 +1,24 @@
 package one.axim.gradle.data;
 
+/**
+ * A field within an {@link APIModelDefinition}.
+ *
+ * <p>Represents a Java class field or enum constant. Used in both model JSON
+ * and error-response JSON generation.
+ *
+ * @see APIModelDefinition
+ */
 public class APIField {
 
+    /** Field name (e.g., {@code "userId"}). */
     private String name;
+    /** Simple type name (e.g., {@code "String"}, {@code "Long"}, {@code "List"}). */
     private String type;
+    /** Fully qualified class path (e.g., {@code "java.lang.String"}). */
     private String classPath;
+    /** Field description (from Javadoc or annotation). */
     private String description;
+    /** Whether this field is optional (default: {@code true}). */
     private boolean isOptional = true;
 
     public String getName() {

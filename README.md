@@ -23,7 +23,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.2'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.3'
     }
 }
 
@@ -50,7 +50,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.2'
+    id 'gradle-restdoc-generator' version '2.0.3'
 }
 ```
 

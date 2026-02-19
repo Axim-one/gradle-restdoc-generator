@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+    id 'gradle-restdoc-generator'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web:3.2.0'
+}
+
+restMetaGenerator {
+    documentPath = 'build/docs'
+    basePackage = 'com.example'
+    deploy = false
+    serverUrl = ''
+    serviceId = 'test-service'
+    debug = false
+
+    // 서비스 정보 (기존 x_service_info.json에서 이동)
+    serviceName = 'Test Service'
+    apiServerUrl = 'http://localhost:8080'
+    serviceVersion = 'v1.0'
+}

@@ -1,0 +1,8 @@
+
+**${type}**
+
+| 이름 | 속성 | 설명 | isOptional |
+| --- | --- | --- | --- |
+<#list parameters as field>
+| `${field.name}` | <#if field.type?has_content >${field.type}</#if> | <#if field.comment?has_content >${field.comment}</#if><#if field.enumTypeComment?has_content ><br/>Enum Type<br/>${field.enumTypeComment}</#if> | ${field.isOptional?then("O", "X")} |<#sep> </#sep>
+</#list>

@@ -1,0 +1,93 @@
+plugins {
+    id 'java'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group 'com.github.axim-one'
+version '1.4.7'
+
+repositories {
+    mavenCentral()
+}
+task sourceJar(type: Jar, dependsOn: classes) {
+    from sourceSets.main.allJava
+    archiveClassifier = "sources"
+}
+
+jar {
+    enabled = true
+    manifest {
+        attributes('Implementation-Title': project.name,
+                'Implementation-Version': project.version)
+    }
+}
+
+dependencies {
+
+    implementation gradleApi()
+
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.5'
+
+//    implementation group: 'org.reflections', name: 'reflections', version: '0.9.11'
+    implementation group: 'com.github.javaparser', name: 'javaparser-core', version: '3.0.0'
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.8.2'
+
+    implementation group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.4.5'
+    implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
+    implementation group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
+
+    implementation 'org.freemarker:freemarker:2.3.31'
+
+    implementation 'com.google.guava:guava:30.0-jre'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+
+    implementation 'com.github.javaparser:javaparser-core:3.24.2'
+    implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.24.2'
+    implementation 'com.github.javaparser:javaparser-core-serialization:3.24.2'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    testImplementation gradleTestKit()
+}
+
+gradlePlugin {
+    plugins {
+        restDocumentPlugin {
+            id = 'gradle-restdoc-generator'
+            implementationClass = 'one.axim.gradle.DocumentPlugin'
+            displayName = 'RestDocument Generator plugin'
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+
+            groupId = "${project.group}"
+            artifactId = "${project.name}"
+            version = "${project.version}"
+            from components.java
+            artifact sourceJar
+
+            pom {
+                name = "${project.group}"
+                description = "${project.description}"
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

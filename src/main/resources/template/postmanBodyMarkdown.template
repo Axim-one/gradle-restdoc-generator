@@ -1,0 +1,17 @@
+
+**${type}**
+
+<#list models as model>
+
+<#if model_index != 0>*${model.className}*</#if>
+
+| 이름 | 속성 | 설명 | isOptional |
+| --- | --- | --- | --- |
+<#list model.fields as field>
+| `${field.name}` | <#if field.type?has_content >${field.type}</#if> | ${field.comment}<#if field.enumTypeComment?has_content ><br/>Enum Type<br/>${field.enumTypeComment}</#if> | ${field.isOptional?then("O", "X")} |\
+</#list>
+
+<#sep>
+
+</#sep>
+</#list>

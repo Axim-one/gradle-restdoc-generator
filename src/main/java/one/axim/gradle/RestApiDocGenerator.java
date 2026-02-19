@@ -277,6 +277,14 @@ public class RestApiDocGenerator {
 
             Log.i("API", "Parameter : " + parameterName + " annotation : " + parameter.getAnnotatedType());
 
+            // Spring Pageable 파라미터 감지
+            if (parameterType.equals("org.springframework.data.domain.Pageable")) {
+                parameterHashMap.put("page", createQueryParameter("page", "Integer", "int", "Page number (0-based)", "0"));
+                parameterHashMap.put("size", createQueryParameter("size", "Integer", "int", "Page size", "20"));
+                parameterHashMap.put("sort", createQueryParameter("sort", "String", "String", "Sort criteria (e.g. property,asc|desc)", null));
+                continue;
+            }
+
             if (TypeMapUtils.isNormalDataType(parameterType)) {
                 tempParameterType = getLastComponent(parameterType, "\\.");
             } else if (parameter.getType().isEnum()) {
@@ -547,6 +555,12 @@ public class RestApiDocGenerator {
                 }
             } else if (returnType.getCanonicalName().startsWith("one.axim.framework.core.data.XPage")) {
                 apiDefinition.setIsPaging(true);
+                apiDefinition.setPagingType(PagingType.XPAGE);
+                Type genericType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
+                returnValueType = genericType.getTypeName();
+            } else if (returnType.getCanonicalName().equals("org.springframework.data.domain.Page")) {
+                apiDefinition.setIsPaging(true);
+                apiDefinition.setPagingType(PagingType.SPRING);
                 Type genericType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
                 returnValueType = genericType.getTypeName();
             }
@@ -563,6 +577,20 @@ public class RestApiDocGenerator {
                             rawName.equals("java.util.ArrayList") ||
                             rawName.equals("java.util.LinkedList")) {
                             apiDefinition.setArrayReturn(true);
+                            Type innerType = pt.getActualTypeArguments()[0];
+                            if (!(innerType instanceof TypeVariable)) {
+                                returnValueType = innerType.getTypeName();
+                            }
+                        } else if (rawName.startsWith("one.axim.framework.core.data.XPage")) {
+                            apiDefinition.setIsPaging(true);
+                            apiDefinition.setPagingType(PagingType.XPAGE);
+                            Type innerType = pt.getActualTypeArguments()[0];
+                            if (!(innerType instanceof TypeVariable)) {
+                                returnValueType = innerType.getTypeName();
+                            }
+                        } else if (rawName.equals("org.springframework.data.domain.Page")) {
+                            apiDefinition.setIsPaging(true);
+                            apiDefinition.setPagingType(PagingType.SPRING);
                             Type innerType = pt.getActualTypeArguments()[0];
                             if (!(innerType instanceof TypeVariable)) {
                                 returnValueType = innerType.getTypeName();
@@ -653,6 +681,9 @@ public class RestApiDocGenerator {
             if (clsName.startsWith("one.axim.framework.core.data.XPage") ||
                 clsName.equals("one.axim.framework.core.data.XPageNation") ||
                 clsName.equals("one.axim.framework.core.data.XOrder") ||
+                clsName.equals("org.springframework.data.domain.Page") ||
+                clsName.equals("org.springframework.data.domain.Pageable") ||
+                clsName.equals("org.springframework.data.domain.Sort") ||
                 cls.isAssignableFrom(List.class) || cls.isAssignableFrom(ArrayList.class)) {
                 return;
             }
@@ -957,6 +988,20 @@ public class RestApiDocGenerator {
         return null;
     }
 
+    private APIParameter createQueryParameter(String name, String classPath, String type, String description, String defaultValue) {
+        APIParameter param = new APIParameter();
+        param.setName(name);
+        param.setClassPath(classPath);
+        param.setType(type);
+        param.setDescription(description);
+        param.setIsOptional(true);
+        param.setParameterKind(APIParameterKind.REQUEST_PARAMETER);
+        if (defaultValue != null) {
+            param.setDefaultValue(defaultValue);
+        }
+        return param;
+    }
+
     /**
      * 클래스 계층을 순회하여 Object 직전까지 모든 선언 필드를 수집한다.
      * 하위 클래스 필드가 먼저 오고, 부모 클래스 필드가 뒤에 추가된다.
@@ -988,6 +1033,11 @@ public class RestApiDocGenerator {
                     rawName.equals("java.util.ArrayList") ||
                     rawName.equals("java.util.LinkedList")) {
                     return type; // List<X> 그대로 반환
+                }
+                // Page/XPage 계열이면 여기서 멈춤 (페이징 반환 처리를 위해)
+                if (rawName.equals("org.springframework.data.domain.Page") ||
+                    rawName.startsWith("one.axim.framework.core.data.XPage")) {
+                    return type;
                 }
             }
             // 래퍼를 벗기고 첫 번째 타입 인자로 진입

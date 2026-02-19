@@ -1,6 +1,7 @@
 package one.axim.gradle.generator;
 
 import one.axim.gradle.data.*;
+import one.axim.gradle.utils.SpringPageSchema;
 import one.axim.gradle.utils.XPageSchema;
 import one.axim.gradle.generator.data.FieldData;
 import one.axim.gradle.generator.data.ModelData;
@@ -40,8 +41,12 @@ public class ModelGenerator {
         ModelDefinition modelDefinition = new ModelDefinition("", api.getClassName());
 
         if (!api.getReturnClass().toLowerCase().equals("void")) {
+            String pagingType = api.getPagingType();
+            if (pagingType == null && api.getIsPaging()) {
+                pagingType = PagingType.XPAGE;
+            }
             makeModelDefinition(languageType, modelDefinition, api.getClassName(), "Response", api.getReturnClass(),
-                    modelPath, api.getIsPaging());
+                    modelPath, pagingType);
         }
 
         return modelDefinition;
@@ -49,11 +54,11 @@ public class ModelGenerator {
 
     public void makeModelDefinition(LanguageType languageType, ModelDefinition modelDefinition, String className,
                                     String suffix, String modelClass, String modelPath) throws IOException {
-        makeModelDefinition(languageType, modelDefinition, className, suffix, modelClass, modelPath, false);
+        makeModelDefinition(languageType, modelDefinition, className, suffix, modelClass, modelPath, (String) null);
     }
 
     public void makeModelDefinition(LanguageType languageType, ModelDefinition modelDefinition, String className,
-                                    String suffix, String modelClass, String modelPath, boolean useXPage) throws IOException {
+                                    String suffix, String modelClass, String modelPath, String pagingType) throws IOException {
 
         File modelFile = new File(modelPath + File.separator + modelClass + ".json");
         if (modelFile.exists()) {
@@ -62,7 +67,7 @@ public class ModelGenerator {
 
             try {
 
-                if (useXPage) {
+                if (PagingType.XPAGE.equals(pagingType)) {
                     ModelData modelData = new ModelData();
                     modelData.setClassName(className + "Page" + suffix);
 
@@ -101,29 +106,62 @@ public class ModelGenerator {
 
                             modelDefinition.addModel(orderModelData);
                         } else {
-
-                            String type = StringUtils.substringAfterLast(field.getType().getTypeName(), ".");
-
-                            if (type.equals("List")) {
-                                type = TypeMapUtils.GetTypeByLanuage("Array", languageType) + "<" + clsName + ">";
-                            } else {
-                                type = TypeMapUtils.GetTypeByLanuage(type, languageType);
-                            }
-
-                            if (type == null) {
-                                type = TypeMapUtils.GetTypeByLanuage(field.getType().getTypeName(), languageType);
-                            }
-
-                            if (type == null) {
-                                throw new RuntimeException("gen code exception " + field.getType() + " type is not supported ...");
-                            }
-
-                            fieldData.setType(type);
+                            fieldData.setType(resolveSchemaFieldType(field, languageType, clsName));
                         }
 
                         modelData.addField(fieldData);
                     }
 
+                    modelDefinition.setKeepModel(modelData);
+                } else if (PagingType.SPRING.equals(pagingType)) {
+                    ModelData modelData = new ModelData();
+                    modelData.setClassName(className + "Page" + suffix);
+
+                    Field[] fields = SpringPageSchema.class.getDeclaredFields();
+                    for (Field field : fields) {
+                        FieldData fieldData = new FieldData();
+                        fieldData.setName(field.getName());
+                        fieldData.setComment(getSpringPageObjectCommentByName(field.getName()));
+                        fieldData.setOptional(false);
+
+                        fieldData.setType(resolveSchemaFieldType(field, languageType, clsName));
+                        modelData.addField(fieldData);
+                    }
+
+                    // sort 중첩 모델
+                    String sortClassName = className + "PageSort" + suffix;
+                    FieldData sortField = new FieldData();
+                    sortField.setName("sort");
+                    sortField.setComment("Sort information");
+                    sortField.setOptional(true);
+                    sortField.setType(sortClassName);
+                    modelData.addField(sortField);
+
+                    ModelData sortModelData = new ModelData();
+                    sortModelData.setClassName(sortClassName);
+
+                    FieldData sortedField = new FieldData();
+                    sortedField.setName("sorted");
+                    sortedField.setComment("Whether sorting is applied");
+                    sortedField.setOptional(false);
+                    sortedField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
+                    sortModelData.addField(sortedField);
+
+                    FieldData unsortedField = new FieldData();
+                    unsortedField.setName("unsorted");
+                    unsortedField.setComment("Whether no sorting is applied");
+                    unsortedField.setOptional(false);
+                    unsortedField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
+                    sortModelData.addField(unsortedField);
+
+                    FieldData sortEmptyField = new FieldData();
+                    sortEmptyField.setName("empty");
+                    sortEmptyField.setComment("Whether sort is empty");
+                    sortEmptyField.setOptional(false);
+                    sortEmptyField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
+                    sortModelData.addField(sortEmptyField);
+
+                    modelDefinition.addModel(sortModelData);
                     modelDefinition.setKeepModel(modelData);
                 }
 
@@ -181,6 +219,21 @@ public class ModelGenerator {
         }
     }
 
+    private String getSpringPageObjectCommentByName(String name) {
+        return switch (name) {
+            case "content" -> "Page content list";
+            case "totalElements" -> "Total number of elements";
+            case "totalPages" -> "Total number of pages";
+            case "size" -> "Page size";
+            case "number" -> "Current page number (0-based)";
+            case "numberOfElements" -> "Number of elements in current page";
+            case "first" -> "Whether this is the first page";
+            case "last" -> "Whether this is the last page";
+            case "empty" -> "Whether the page is empty";
+            default -> "";
+        };
+    }
+
     private String getXPageObjectCommentByName(String name) {
         return switch (name) {
             case "page" -> "페이지 수";
@@ -193,6 +246,26 @@ public class ModelGenerator {
             case "pageRows" -> "조회된 데이터 목록";
             default -> "";
         };
+    }
+
+    private String resolveSchemaFieldType(Field field, LanguageType languageType, String contentTypeName) {
+        String type = StringUtils.substringAfterLast(field.getType().getTypeName(), ".");
+
+        if (type.equals("List")) {
+            type = TypeMapUtils.GetTypeByLanuage("Array", languageType) + "<" + contentTypeName + ">";
+        } else {
+            type = TypeMapUtils.GetTypeByLanuage(type, languageType);
+        }
+
+        if (type == null) {
+            type = TypeMapUtils.GetTypeByLanuage(field.getType().getTypeName(), languageType);
+        }
+
+        if (type == null) {
+            throw new RuntimeException("gen code exception " + field.getType() + " type is not supported ...");
+        }
+
+        return type;
     }
 
     private String toNameUpperCase(String name) {

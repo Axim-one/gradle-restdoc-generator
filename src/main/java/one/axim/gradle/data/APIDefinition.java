@@ -42,6 +42,8 @@ public class APIDefinition {
     @JsonProperty("isPaging")
     private boolean isPaging;
 
+    private String pagingType;
+
     public APIDefinition() {
         responseStatus = new HashMap<>();
         responseStatus.put("200", "성공");
@@ -196,6 +198,14 @@ public class APIDefinition {
 
     public void setClassName(String className) {
         this.className = className;
+    }
+
+    public String getPagingType() {
+        return pagingType;
+    }
+
+    public void setPagingType(String pagingType) {
+        this.pagingType = pagingType;
     }
 
     public String getGroupId() {

@@ -1,6 +1,7 @@
 package one.axim.gradle;
 
 import one.axim.gradle.data.*;
+import one.axim.gradle.utils.SpringPageSchema;
 import one.axim.gradle.utils.XPageSchema;
 import one.axim.gradle.generator.LanguageType;
 import one.axim.gradle.generator.ModelGenerator;
@@ -560,7 +561,11 @@ public class PostmanSpecConverter {
 
         if (apiDefinition.getReturnClass() != null && !apiDefinition.getReturnClass().toLowerCase().equals("void")) {
 
-            Object body = makeModel(loadModel(apiDefinition.getReturnClass()), apiDefinition.getIsPaging());
+            String pagingType = apiDefinition.getPagingType();
+            if (pagingType == null && apiDefinition.getIsPaging()) {
+                pagingType = PagingType.XPAGE;
+            }
+            Object body = makeModel(loadModel(apiDefinition.getReturnClass()), pagingType);
 
             try {
                 responseData.setBody(objectMapper.writeValueAsString(body));
@@ -800,14 +805,14 @@ public class PostmanSpecConverter {
     }
 
     private HashMap<String, Object> makeModel(APIModelDefinition modelDefinition) {
-        return makeModel(modelDefinition, false);
+        return makeModel(modelDefinition, (String) null);
     }
 
-    private HashMap<String, Object> makeModel(APIModelDefinition modelDefinition, boolean useXPage) {
+    private HashMap<String, Object> makeModel(APIModelDefinition modelDefinition, String pagingType) {
 
         HashMap<String, Object> reqObj = new HashMap<>();
 
-        if (useXPage) {
+        if (PagingType.XPAGE.equals(pagingType)) {
 
             Field[] fields = XPageSchema.class.getDeclaredFields();
             for (Field field : fields) {
@@ -819,6 +824,26 @@ public class PostmanSpecConverter {
                     reqObj.put(field.getName(), field.getType().getTypeName());
                 }
             }
+
+        } else if (PagingType.SPRING.equals(pagingType)) {
+
+            Field[] fields = SpringPageSchema.class.getDeclaredFields();
+            for (Field field : fields) {
+                if (field.getName().equals("content")) {
+                    ArrayList<Object> obj = new ArrayList<>();
+                    obj.add(makeModel(modelDefinition));
+                    reqObj.put(field.getName(), obj);
+                } else {
+                    reqObj.put(field.getName(), field.getType().getTypeName());
+                }
+            }
+
+            // sort 중첩 객체
+            HashMap<String, Object> sortObj = new HashMap<>();
+            sortObj.put("sorted", "boolean");
+            sortObj.put("unsorted", "boolean");
+            sortObj.put("empty", "boolean");
+            reqObj.put("sort", sortObj);
 
         } else {
             if (modelDefinition != null && modelDefinition.getFields() != null) {

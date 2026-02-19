@@ -2,6 +2,8 @@ package com.example;
 
 import com.example.dto.UserDto;
 import com.example.dto.UserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,6 +50,18 @@ public class SampleController {
      */
     @GetMapping(name = "사용자 상태 조회", value = "/{id}/status")
     public UserStatus getUserStatus(@PathVariable("id") Long id) {
+        return null;
+    }
+
+    /**
+     * 사용자 페이징 조회
+     *
+     * @param pageable 페이지 정보
+     * @return 사용자 페이징 목록
+     * @group 사용자
+     */
+    @GetMapping(name = "사용자 페이징 조회", value = "/paged")
+    public Page<UserDto> getUsersPaged(Pageable pageable) {
         return null;
     }
 }

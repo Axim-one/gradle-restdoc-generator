@@ -2,6 +2,7 @@ package one.axim.gradle.test;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import one.axim.gradle.data.PagingType;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
@@ -116,6 +117,43 @@ public class RestMetaGeneratorIntegrationTest {
         Map<String, Object> model = gson.fromJson(json, Map.class);
 
         assertEquals("Enum", model.get("type"), "UserStatus type should be 'Enum'");
+    }
+
+    @Test
+    void testSpringPageApiDefinition() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson, "SampleController API JSON should exist");
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        // getUsersPaged 메서드 찾기
+        Map<String, Object> pagedApi = null;
+        for (Map<String, Object> api : apis) {
+            if ("사용자 페이징 조회".equals(api.get("name"))) {
+                pagedApi = api;
+                break;
+            }
+        }
+        assertNotNull(pagedApi, "사용자 페이징 조회 API should exist");
+
+        // isPaging=true, pagingType=spring 확인
+        assertTrue((Boolean) pagedApi.get("isPaging"), "isPaging should be true");
+        assertEquals(PagingType.SPRING, pagedApi.get("pagingType"), "pagingType should be 'spring'");
+
+        // page, size, sort 파라미터 확인
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> params = (List<Map<String, Object>>) pagedApi.get("parameters");
+        assertNotNull(params, "parameters should not be null");
+
+        List<String> paramNames = params.stream()
+                .map(p -> (String) p.get("name"))
+                .toList();
+        assertTrue(paramNames.contains("page"), "should contain page parameter");
+        assertTrue(paramNames.contains("size"), "should contain size parameter");
+        assertTrue(paramNames.contains("sort"), "should contain sort parameter");
     }
 
     @Test

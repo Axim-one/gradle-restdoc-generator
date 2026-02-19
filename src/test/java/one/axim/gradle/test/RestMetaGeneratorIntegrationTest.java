@@ -195,6 +195,135 @@ public class RestMetaGeneratorIntegrationTest {
     }
 
     @Test
+    void testInnerClassEnumParameter() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson, "SampleController API JSON should exist");
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        // 주문 상태별 조회 메서드 찾기
+        Map<String, Object> orderApi = null;
+        for (Map<String, Object> api : apis) {
+            if ("주문 상태별 조회".equals(api.get("name"))) {
+                orderApi = api;
+                break;
+            }
+        }
+        assertNotNull(orderApi, "주문 상태별 조회 API should exist (inner class enum should not cause failure)");
+
+        // status 파라미터가 enum으로 처리되었는지 확인
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> params = (List<Map<String, Object>>) orderApi.get("parameters");
+        assertNotNull(params, "parameters should not be null");
+
+        Map<String, Object> statusParam = null;
+        for (Map<String, Object> param : params) {
+            if ("status".equals(param.get("name"))) {
+                statusParam = param;
+                break;
+            }
+        }
+        assertNotNull(statusParam, "status parameter should exist");
+        assertTrue(((Boolean) statusParam.get("isEnum")), "status should be recognized as enum");
+    }
+
+    @Test
+    void testAllApiMethodsProcessed() throws Exception {
+        // Bug 2 검증: 모든 메서드가 처리되었는지 확인 (한 메서드 실패로 나머지가 스킵되지 않음)
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        List<String> apiNames = apis.stream()
+                .map(api -> (String) api.get("name"))
+                .toList();
+
+        // 모든 API 메서드가 생성되었는지 확인
+        assertTrue(apiNames.contains("사용자 목록 조회"), "사용자 목록 조회 should be processed");
+        assertTrue(apiNames.contains("사용자 상세 조회"), "사용자 상세 조회 should be processed");
+        assertTrue(apiNames.contains("사용자 상태 조회"), "사용자 상태 조회 should be processed");
+        assertTrue(apiNames.contains("사용자 페이징 조회"), "사용자 페이징 조회 should be processed");
+        assertTrue(apiNames.contains("주문 상태별 조회"), "주문 상태별 조회 should be processed");
+        assertTrue(apiNames.contains("사용자 단건 조회 래핑"), "사용자 단건 조회 래핑 should be processed");
+        assertTrue(apiNames.contains("사용자 목록 조회 래핑"), "사용자 목록 조회 래핑 should be processed");
+        assertTrue(apiNames.contains("사용자 페이징 조회 래핑"), "사용자 페이징 조회 래핑 should be processed");
+    }
+
+    @Test
+    void testApiResultWrappedSingleObject() throws Exception {
+        // ApiResult<UserDto> → returnClass가 UserDto여야 함
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 단건 조회 래핑");
+        assertNotNull(api, "사용자 단건 조회 래핑 API should exist");
+
+        String returnClass = (String) api.get("returnClass");
+        assertTrue(returnClass.contains("UserDto"),
+                "returnClass should be UserDto, not ApiResult. Got: " + returnClass);
+        assertFalse(returnClass.contains("ApiResult"),
+                "returnClass should NOT contain ApiResult. Got: " + returnClass);
+    }
+
+    @Test
+    void testApiResultWrappedList() throws Exception {
+        // ApiResult<List<UserDto>> → returnClass가 UserDto이고 arrayReturn이 true
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 목록 조회 래핑");
+        assertNotNull(api, "사용자 목록 조회 래핑 API should exist");
+
+        String returnClass = (String) api.get("returnClass");
+        assertTrue(returnClass.contains("UserDto"),
+                "returnClass should be UserDto. Got: " + returnClass);
+        assertTrue((Boolean) api.get("isArrayReturn"),
+                "isArrayReturn should be true for ApiResult<List<UserDto>>");
+    }
+
+    @Test
+    void testApiResultWrappedPage() throws Exception {
+        // ApiResult<Page<UserDto>> → returnClass가 UserDto이고 isPaging=true, pagingType=spring
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 페이징 조회 래핑");
+        assertNotNull(api, "사용자 페이징 조회 래핑 API should exist");
+
+        String returnClass = (String) api.get("returnClass");
+        assertTrue(returnClass.contains("UserDto"),
+                "returnClass should be UserDto. Got: " + returnClass);
+        assertFalse(returnClass.contains("Page"),
+                "returnClass should NOT contain Page. Got: " + returnClass);
+        assertTrue((Boolean) api.get("isPaging"),
+                "isPaging should be true for ApiResult<Page<UserDto>>");
+        assertEquals(PagingType.SPRING, api.get("pagingType"),
+                "pagingType should be 'spring'");
+    }
+
+    @Test
     void testServiceJsonGenerated() {
         Path docsDir = tempDir.resolve("build/docs");
         File[] jsonFiles = docsDir.toFile().listFiles(
@@ -212,6 +341,15 @@ public class RestMetaGeneratorIntegrationTest {
     }
 
     // --- helpers ---
+
+    private static Map<String, Object> findApiByName(List<Map<String, Object>> apis, String name) {
+        for (Map<String, Object> api : apis) {
+            if (name.equals(api.get("name"))) {
+                return api;
+            }
+        }
+        return null;
+    }
 
     private static File findFile(Path dir, String nameContains) {
         File[] files = dir.toFile().listFiles();

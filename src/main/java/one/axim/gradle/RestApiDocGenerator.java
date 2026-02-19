@@ -180,7 +180,12 @@ public class RestApiDocGenerator {
         while (iter.hasNext()) {
             Class<?> clazz = iter.next();
             Set<Method> methods = methodMap.get(clazz);
-            processClassMethods(clazz, methods, referenceClassSet);
+            try {
+                processClassMethods(clazz, methods, referenceClassSet);
+            } catch (Exception e) {
+                System.err.println("[WARN] Failed to process controller: " + clazz.getName() + " — " + e.getMessage());
+                e.printStackTrace();
+            }
         }
         if (!referenceClassSet.isEmpty()) {
             generationReferenceClassJson(referenceClassSet);
@@ -204,12 +209,17 @@ public class RestApiDocGenerator {
 
             // 메서드들의 API 문서 준비
             for (Method method : methods) {
-                if (method.getAnnotations() != null)
-                    for (Annotation annotation : method.getAnnotations()) {
-                        System.out.println("method :: " + method.getName() + " annotation :: " + annotation.annotationType() + " name :: " + SuperRequestMappingUtil.name(method));
-                    }
+                try {
+                    if (method.getAnnotations() != null)
+                        for (Annotation annotation : method.getAnnotations()) {
+                            System.out.println("method :: " + method.getName() + " annotation :: " + annotation.annotationType() + " name :: " + SuperRequestMappingUtil.name(method));
+                        }
 
-                processSingleMethod(clazz, method, apiDefinitionArrayList, referenceClassSet, srcParser);
+                    processSingleMethod(clazz, method, apiDefinitionArrayList, referenceClassSet, srcParser);
+                } catch (Exception e) {
+                    System.err.println("[WARN] Failed to process method: " + clazz.getName() + "." + method.getName() + " — " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
 
             // 하나의 클래스와 이 클래스가 갖는 메서드들의 문서를 JSON 파일로 쓰기
@@ -461,7 +471,7 @@ public class RestApiDocGenerator {
 
                         if (parameterHashMap.get(paramName).getIsEnum()) {
                             // enum field add
-                            Class cls = clazz.getClassLoader().loadClass(parameterHashMap.get(paramName).getClassPath());
+                            Class cls = loadClassWithFallback(clazz.getClassLoader(), parameterHashMap.get(paramName).getClassPath());
                             if (cls != null) {
                                 Field[] fields = cls.getDeclaredFields();
                                 desc += " ( ";
@@ -677,7 +687,7 @@ public class RestApiDocGenerator {
             if (!enableCls) return;
 
             try {
-                cls = this.baseClassUtil.getClassLoader().loadClass(s);
+                cls = loadClassWithFallback(this.baseClassUtil.getClassLoader(), s);
             } catch (ClassNotFoundException e1) {
                 e1.printStackTrace();
                 return;
@@ -1066,5 +1076,29 @@ public class RestApiDocGenerator {
         int gtIdx = typeName.lastIndexOf('>');
         if (gtIdx < 0) return typeName;
         return typeName.substring(ltIdx + 1, gtIdx);
+    }
+
+    /**
+     * ClassLoader.loadClass()로 클래스를 로드한다.
+     * canonical name (예: com.example.Outer.Inner)으로 실패 시,
+     * 오른쪽 '.'부터 '$'로 교체하며 재시도하여 inner class (com.example.Outer$Inner)를 처리한다.
+     */
+    private Class<?> loadClassWithFallback(ClassLoader classLoader, String className) throws ClassNotFoundException {
+        try {
+            return classLoader.loadClass(className);
+        } catch (ClassNotFoundException e) {
+            // inner class fallback: 오른쪽 '.'부터 '$'로 교체하며 재시도
+            String candidate = className;
+            int lastDot;
+            while ((lastDot = candidate.lastIndexOf('.')) > 0) {
+                candidate = candidate.substring(0, lastDot) + "$" + candidate.substring(lastDot + 1);
+                try {
+                    return classLoader.loadClass(candidate);
+                } catch (ClassNotFoundException ignored) {
+                    // 다음 '.'을 시도
+                }
+            }
+            throw e; // 모든 시도 실패 시 원래 예외 던짐
+        }
     }
 }

@@ -29,9 +29,8 @@ The `restMetaGenerator` task accepts these DSL properties:
 
 **Core:**
 - `documentPath`, `basePackage` — where to output docs and which packages to scan
-- `serverUrl`, `serviceId` — API doc server deployment target
 - `postmanApiKey`, `postmanWorkSpaceId` — Postman integration
-- `deploy`, `debug` — flags
+- `debug` — flag
 
 **Service info (replaces former `x_service_info.json`):**
 - `serviceName` — display name of the service
@@ -48,9 +47,7 @@ The `restMetaGenerator` task accepts these DSL properties:
 
 1. **Scan & Generate JSON** — `RestApiDocGenerator` uses Guava `ClassPath` + reflection to find `@RestController` classes, then parses their Java source files with `JavaSourceParser` (backed by `javaparser`) to extract Javadoc comments, parameter names, and type info. Outputs per-controller API JSON and per-model JSON under `documentPath/api/` and `documentPath/model/`.
 
-2. **Deploy to doc server** — `RestApiDocDeployer` reads the generated JSON files and POSTs them to `serverUrl/upload/{serviceId}`.
-
-3. **Postman sync** — `PostmanSpecConverter` receives the `ServiceDefinition` (built from Gradle DSL) and reads the generated API JSON, converts to Postman Collection v2.1 format, and creates/updates collections and environments via Postman API. Merges existing request values (headers, query params, body, path variables) from previously saved collections.
+2. **Postman sync** — `PostmanSpecConverter` receives the `ServiceDefinition` (built from Gradle DSL) and reads the generated API JSON, converts to Postman Collection v2.1 format, and creates/updates collections and environments via Postman API. Merges existing request values (headers, query params, body, path variables) from previously saved collections.
 
 ### Key Packages
 

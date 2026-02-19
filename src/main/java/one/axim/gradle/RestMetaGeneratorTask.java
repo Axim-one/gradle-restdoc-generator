@@ -40,12 +40,6 @@ public class RestMetaGeneratorTask extends DefaultTask {
     private String basePackage;
 
     @Input
-    private boolean deploy = true;
-
-    @Input
-    private String serverUrl;
-
-    @Input
     private String serviceId;
 
     @Input
@@ -131,22 +125,6 @@ public class RestMetaGeneratorTask extends DefaultTask {
 
     public void setBasePackage(String basePackage) {
         this.basePackage = basePackage;
-    }
-
-    public boolean getDeploy() {
-        return deploy;
-    }
-
-    public void setDeploy(boolean deploy) {
-        this.deploy = deploy;
-    }
-
-    public String getServerUrl() {
-        return serverUrl;
-    }
-
-    public void setServerUrl(String serverUrl) {
-        this.serverUrl = serverUrl;
     }
 
     public String getServiceId() {
@@ -238,8 +216,6 @@ public class RestMetaGeneratorTask extends DefaultTask {
         Log.i(TAG, "-------------------------------------------------");
         Log.i(TAG, String.format("  documentPath: [%s]", documentPath));
         Log.i(TAG, String.format("  basePackage: [%s]%n", basePackage));
-        Log.i(TAG, String.format("  deploy: [%b]%n", deploy));
-        Log.i(TAG, String.format("  serverUrl: [%s]%n", serverUrl));
         Log.i(TAG, String.format("  serviceId: [%s]%n", serviceId));
         Log.i(TAG, "-------------------------------------------------");
 
@@ -284,10 +260,6 @@ public class RestMetaGeneratorTask extends DefaultTask {
             // API 문서 생성
             doGenerate(docDir, baseClassUtils, classUtils);
             Log.i(TAG, "API document generate complete");
-
-            // API Doc 서버 저장
-            doDeploy(docDir);
-            Log.i(TAG, "API SERVER Save Complete");
 
             if (!StringUtils.isEmpty(this.postmanApiKey)) {
                 Log.i(TAG, "postman import start");
@@ -377,14 +349,6 @@ public class RestMetaGeneratorTask extends DefaultTask {
         RestApiDocGenerator generator =
                 new RestApiDocGenerator(baseClassUtils, classUtils, docDir, basePackage);
         generator.generate();
-
-    }
-
-    private void doDeploy(File docDir) throws Exception {
-
-        RestApiDocDeployer deployer =
-                new RestApiDocDeployer(docDir, serverUrl, serviceId);
-        deployer.deploy();
 
     }
 

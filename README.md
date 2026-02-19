@@ -10,7 +10,6 @@ Spring Boot `@RestController`에서 Javadoc 기반으로 REST API 문서를 자�
 - Javadoc 커스텀 태그(`@response`, `@group`, `@auth`, `@header`)로 풍부한 문서화
 - Postman Collection v2.1 자동 동기화 (기존 값 merge 지원)
 - Postman Environment 변수 관리
-- API Doc 서버 배포 지원
 
 ## Installation
 
@@ -92,10 +91,6 @@ restMetaGenerator {
     // Postman 동기화
     postmanApiKey = ''           // Postman API Key
     postmanWorkSpaceId = ''      // Postman Workspace ID
-
-    // API Doc 서버 배포
-    deploy = false
-    serverUrl = ''
 
     debug = false
 }

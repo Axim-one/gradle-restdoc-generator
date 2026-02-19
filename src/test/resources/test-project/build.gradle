@@ -14,8 +14,6 @@ dependencies {
 restMetaGenerator {
     documentPath = 'build/docs'
     basePackage = 'com.example'
-    deploy = false
-    serverUrl = ''
     serviceId = 'test-service'
     debug = false
 

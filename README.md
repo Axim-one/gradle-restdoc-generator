@@ -10,6 +10,8 @@ Spring Boot `@RestController`에서 Javadoc 기반으로 REST API 문서를 자�
 - Javadoc 커스텀 태그(`@response`, `@group`, `@auth`, `@header`)로 풍부한 문서화
 - Spring `Pageable` 파라미터 자동 인식 → `page`, `size`, `sort` 쿼리 파라미터 생성
 - Spring `Page<T>` 리턴 타입 자동 인식 → 페이지네이션 응답 모델 생성
+- OpenAPI 3.0.3 스펙 (`openapi.json`) 자동 생성
+- 번들 JSON (`spec-bundle.json`) 생성 — API 문서 UI 연동용
 - Postman Collection v2.1 자동 동기화 (기존 값 merge 지원)
 - Postman Environment 변수 관리
 
@@ -23,7 +25,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.3'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.4'
     }
 }
 
@@ -153,10 +155,30 @@ public Page<UserDto> getUsers(Pageable pageable) { ... }
 ```
 build/docs/
 ├── {serviceId}.json          # 서비스 정의
+├── openapi.json              # OpenAPI 3.0.3 스펙
+├── spec-bundle.json          # 통합 번들 (서비스 + API + 모델)
 ├── api/
 │   └── {ControllerName}.json # 컨트롤러별 API 정의
 └── model/
     └── {ClassName}.json      # 모델(DTO) 정의
+```
+
+## OpenAPI & Spec Bundle
+
+`restMetaGenerator` 실행 시 별도 설정 없이 자동 생성됩니다:
+
+- **`openapi.json`** — OpenAPI 3.0.3 표준 스펙. Swagger UI, Redoc 등 외부 도구와 호환.
+- **`spec-bundle.json`** — 서비스 정보 + 전체 API + 전체 모델을 하나의 파일로 합친 번들. API 문서 UI에서 단일 HTTP 요청으로 로드할 수 있도록 설계.
+
+```json
+// spec-bundle.json 구조
+{
+  "service": { "serviceId": "...", "name": "...", ... },
+  "apis": [ { "id": "...", "name": "...", "method": "GET", ... } ],
+  "models": {
+    "com.example.dto.UserDto": { "type": "Object", "fields": [...] }
+  }
+}
 ```
 
 ## Requirements

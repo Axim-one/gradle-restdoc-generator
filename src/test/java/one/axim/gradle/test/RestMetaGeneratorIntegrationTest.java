@@ -340,7 +340,247 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(found, "Service JSON (test-service.json) should exist in docs root");
     }
 
+    // --- OpenAPI tests ---
+
+    @Test
+    void testOpenApiJsonGenerated() {
+        Path openapiFile = tempDir.resolve("build/docs/openapi.json");
+        assertTrue(Files.exists(openapiFile), "openapi.json should be generated");
+    }
+
+    @Test
+    void testOpenApiStructure() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+
+        assertEquals("3.0.3", spec.get("openapi"), "openapi version should be 3.0.3");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> info = (Map<String, Object>) spec.get("info");
+        assertNotNull(info, "info should not be null");
+        assertEquals("Test Service", info.get("title"), "info.title should match serviceName");
+        assertEquals("v1.0", info.get("version"), "info.version should match serviceVersion");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> servers = (List<Map<String, Object>>) spec.get("servers");
+        assertNotNull(servers, "servers should not be null");
+        assertFalse(servers.isEmpty(), "servers should not be empty");
+        assertEquals("http://localhost:8080", servers.get(0).get("url"), "server url should match apiServerUrl");
+    }
+
+    @Test
+    void testOpenApiPaths() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+        assertNotNull(paths, "paths should not be null");
+        assertFalse(paths.isEmpty(), "paths should not be empty");
+
+        // Check that at least one path with a path parameter exists
+        boolean hasPathParam = false;
+        for (Map.Entry<String, Object> entry : paths.entrySet()) {
+            if (entry.getKey().contains("{")) {
+                hasPathParam = true;
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> pathItem = (Map<String, Object>) entry.getValue();
+                // Find the operation (get, post, etc.)
+                for (Object opObj : pathItem.values()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> operation = (Map<String, Object>) opObj;
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> parameters = (List<Map<String, Object>>) operation.get("parameters");
+                    if (parameters != null) {
+                        boolean foundPathIn = parameters.stream()
+                                .anyMatch(p -> "path".equals(p.get("in")));
+                        assertTrue(foundPathIn, "path parameter should have in=path");
+                    }
+                }
+                break;
+            }
+        }
+        assertTrue(hasPathParam, "at least one path should contain a path parameter");
+    }
+
+    @Test
+    void testOpenApiComponentSchemas() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        assertNotNull(components, "components should not be null");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        assertNotNull(schemas, "schemas should not be null");
+
+        // UserDto schema should exist
+        assertTrue(schemas.containsKey("UserDto"), "UserDto schema should exist");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> userSchema = (Map<String, Object>) schemas.get("UserDto");
+        assertEquals("object", userSchema.get("type"), "UserDto should be type object");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = (Map<String, Object>) userSchema.get("properties");
+        assertNotNull(properties, "UserDto properties should not be null");
+        assertTrue(properties.containsKey("name"), "UserDto should have name property");
+
+        // Enum schema should exist (UserStatus or OrderDto_OrderStatus)
+        boolean hasEnumSchema = schemas.keySet().stream()
+                .anyMatch(key -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> s = (Map<String, Object>) schemas.get(key);
+                    return s.containsKey("enum");
+                });
+        assertTrue(hasEnumSchema, "at least one enum schema should exist in components");
+    }
+
+    @Test
+    void testOpenApiPaginationSchema() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        // SpringPage_UserDto wrapper schema should exist
+        assertTrue(schemas.containsKey("SpringPage_UserDto"),
+                "SpringPage_UserDto schema should exist for paged APIs");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pageSchema = (Map<String, Object>) schemas.get("SpringPage_UserDto");
+        assertEquals("object", pageSchema.get("type"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> props = (Map<String, Object>) pageSchema.get("properties");
+        assertNotNull(props, "SpringPage schema should have properties");
+        assertTrue(props.containsKey("content"), "should have content property");
+        assertTrue(props.containsKey("totalElements"), "should have totalElements property");
+        assertTrue(props.containsKey("totalPages"), "should have totalPages property");
+        assertTrue(props.containsKey("sort"), "should have sort property");
+
+        // content should be an array referencing UserDto
+        @SuppressWarnings("unchecked")
+        Map<String, Object> contentProp = (Map<String, Object>) props.get("content");
+        assertEquals("array", contentProp.get("type"), "content should be type array");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> items = (Map<String, Object>) contentProp.get("items");
+        assertNotNull(items, "content items should not be null");
+        assertTrue(((String) items.get("$ref")).contains("UserDto"),
+                "content items should reference UserDto");
+    }
+
+    @Test
+    void testOpenApiArrayReturn() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+
+        // Find the list endpoint (사용자 목록 조회) - should have array response
+        boolean foundArrayResponse = false;
+        for (Object pathItemObj : paths.values()) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pathItem = (Map<String, Object>) pathItemObj;
+            for (Object opObj : pathItem.values()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> operation = (Map<String, Object>) opObj;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> responses = (Map<String, Object>) operation.get("responses");
+                if (responses == null) continue;
+
+                for (Object respObj : responses.values()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> resp = (Map<String, Object>) respObj;
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> content = (Map<String, Object>) resp.get("content");
+                    if (content == null) continue;
+
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> jsonContent = (Map<String, Object>) content.get("application/json");
+                    if (jsonContent == null) continue;
+
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> schema = (Map<String, Object>) jsonContent.get("schema");
+                    if (schema != null && "array".equals(schema.get("type"))) {
+                        foundArrayResponse = true;
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> arrayItems = (Map<String, Object>) schema.get("items");
+                        assertNotNull(arrayItems, "array items should not be null");
+                        assertNotNull(arrayItems.get("$ref"), "array items should have $ref");
+                        break;
+                    }
+                }
+                if (foundArrayResponse) break;
+            }
+            if (foundArrayResponse) break;
+        }
+        assertTrue(foundArrayResponse, "at least one endpoint should have an array response schema");
+    }
+
+    // --- Spec Bundle tests ---
+
+    @Test
+    void testSpecBundleGenerated() {
+        Path bundleFile = tempDir.resolve("build/docs/spec-bundle.json");
+        assertTrue(Files.exists(bundleFile), "spec-bundle.json should be generated");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleStructure() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+
+        // service
+        Map<String, Object> service = (Map<String, Object>) bundle.get("service");
+        assertNotNull(service, "service should not be null");
+        assertEquals("test-service", service.get("serviceId"));
+        assertEquals("Test Service", service.get("name"));
+        assertEquals("http://localhost:8080", service.get("apiServerUrl"));
+
+        // apis
+        List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
+        assertNotNull(apis, "apis should not be null");
+        assertTrue(apis.size() >= 8, "should have at least 8 APIs, got: " + apis.size());
+
+        // models
+        Map<String, Object> models = (Map<String, Object>) bundle.get("models");
+        assertNotNull(models, "models should not be null");
+        assertTrue(models.containsKey("com.example.dto.UserDto"), "should contain UserDto model");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleModelsContainEnums() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+        Map<String, Object> models = (Map<String, Object>) bundle.get("models");
+
+        boolean hasEnum = models.values().stream().anyMatch(m -> {
+            Map<String, Object> model = (Map<String, Object>) m;
+            return "Enum".equals(model.get("type"));
+        });
+        assertTrue(hasEnum, "models should contain at least one Enum type");
+    }
+
     // --- helpers ---
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readSpecBundle() throws Exception {
+        Path bundleFile = tempDir.resolve("build/docs/spec-bundle.json");
+        String json = Files.readString(bundleFile);
+        return gson.fromJson(json, Map.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readOpenApiJson() throws Exception {
+        Path openapiFile = tempDir.resolve("build/docs/openapi.json");
+        String json = Files.readString(openapiFile);
+        return gson.fromJson(json, Map.class);
+    }
+
 
     private static Map<String, Object> findApiByName(List<Map<String, Object>> apis, String name) {
         for (Map<String, Object> api : apis) {

@@ -261,6 +261,18 @@ public class RestMetaGeneratorTask extends DefaultTask {
             doGenerate(docDir, baseClassUtils, classUtils);
             Log.i(TAG, "API document generate complete");
 
+            // OpenAPI 3.0 스펙 생성
+            Log.i(TAG, "OpenAPI spec generation start");
+            OpenApiSpecConverter openApiConverter = new OpenApiSpecConverter(serviceDefinition, docDir.getPath());
+            openApiConverter.build();
+            Log.i(TAG, "OpenAPI spec generation end");
+
+            // Spec Bundle JSON 생성
+            Log.i(TAG, "Spec bundle generation start");
+            SpecBundleGenerator bundleGenerator = new SpecBundleGenerator(serviceDefinition, docDir.getPath());
+            bundleGenerator.build();
+            Log.i(TAG, "Spec bundle generation end");
+
             if (!StringUtils.isEmpty(this.postmanApiKey)) {
                 Log.i(TAG, "postman import start");
                 PostmanSpecConverter postmanSpecConverter = new PostmanSpecConverter(this.postmanApiKey, this.postmanWorkSpaceId, serviceDefinition, docDir.getPath());

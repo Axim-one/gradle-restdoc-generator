@@ -1,5 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
+  "url": "https://context7.com/axim-one/gradle-restdoc-generator",
+  "public_key": "pk_4eyDlMMwWswsLoxlxZh1P",
   "projectTitle": "gradle-restdoc-generator",
   "description": "Gradle plugin that auto-generates REST API documentation (JSON, OpenAPI 3.0, Postman) from Spring Boot @RestController classes using Javadoc-based scanning and reflection",
   "branch": "master",

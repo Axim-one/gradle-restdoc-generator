@@ -154,6 +154,44 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(paramNames.contains("page"), "should contain page parameter");
         assertTrue(paramNames.contains("size"), "should contain size parameter");
         assertTrue(paramNames.contains("sort"), "should contain sort parameter");
+
+        // classPath가 FQN인지 확인
+        for (Map<String, Object> param : params) {
+            String name = (String) param.get("name");
+            String classPath = (String) param.get("classPath");
+            if ("page".equals(name) || "size".equals(name)) {
+                assertEquals("java.lang.Integer", classPath, name + " classPath should be FQN");
+            } else if ("sort".equals(name)) {
+                assertEquals("java.lang.String", classPath, "sort classPath should be FQN");
+            }
+        }
+    }
+
+    @Test
+    void testSpringPageReturnClassIsContentType() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> pagedApi = null;
+        for (Map<String, Object> api : apis) {
+            if ("사용자 페이징 조회".equals(api.get("name"))) {
+                pagedApi = api;
+                break;
+            }
+        }
+        assertNotNull(pagedApi);
+
+        // returnClass가 Page가 아닌 내부 타입(UserDto)이어야 함
+        String returnClass = (String) pagedApi.get("returnClass");
+        assertTrue(returnClass.contains("UserDto"),
+                "returnClass should be the content type (UserDto), not Page. Got: " + returnClass);
+        assertFalse(returnClass.contains("Page"),
+                "returnClass should NOT contain 'Page'. Got: " + returnClass);
     }
 
     @Test

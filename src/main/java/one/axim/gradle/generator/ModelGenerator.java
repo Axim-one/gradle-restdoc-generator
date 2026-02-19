@@ -2,6 +2,7 @@ package one.axim.gradle.generator;
 
 import one.axim.gradle.data.*;
 import one.axim.gradle.utils.SpringPageSchema;
+import one.axim.gradle.utils.SpringPageSortSchema;
 import one.axim.gradle.utils.XPageSchema;
 import one.axim.gradle.generator.data.FieldData;
 import one.axim.gradle.generator.data.ModelData;
@@ -41,12 +42,8 @@ public class ModelGenerator {
         ModelDefinition modelDefinition = new ModelDefinition("", api.getClassName());
 
         if (!api.getReturnClass().toLowerCase().equals("void")) {
-            String pagingType = api.getPagingType();
-            if (pagingType == null && api.getIsPaging()) {
-                pagingType = PagingType.XPAGE;
-            }
             makeModelDefinition(languageType, modelDefinition, api.getClassName(), "Response", api.getReturnClass(),
-                    modelPath, pagingType);
+                    modelPath, api.getEffectivePagingType());
         }
 
         return modelDefinition;
@@ -140,26 +137,15 @@ public class ModelGenerator {
                     ModelData sortModelData = new ModelData();
                     sortModelData.setClassName(sortClassName);
 
-                    FieldData sortedField = new FieldData();
-                    sortedField.setName("sorted");
-                    sortedField.setComment("Whether sorting is applied");
-                    sortedField.setOptional(false);
-                    sortedField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
-                    sortModelData.addField(sortedField);
-
-                    FieldData unsortedField = new FieldData();
-                    unsortedField.setName("unsorted");
-                    unsortedField.setComment("Whether no sorting is applied");
-                    unsortedField.setOptional(false);
-                    unsortedField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
-                    sortModelData.addField(unsortedField);
-
-                    FieldData sortEmptyField = new FieldData();
-                    sortEmptyField.setName("empty");
-                    sortEmptyField.setComment("Whether sort is empty");
-                    sortEmptyField.setOptional(false);
-                    sortEmptyField.setType(TypeMapUtils.GetTypeByLanuage("boolean", languageType));
-                    sortModelData.addField(sortEmptyField);
+                    for (Field sortSchemaField : SpringPageSortSchema.class.getDeclaredFields()) {
+                        FieldData sf = new FieldData();
+                        sf.setName(sortSchemaField.getName());
+                        sf.setComment(getSpringPageSortCommentByName(sortSchemaField.getName()));
+                        sf.setOptional(false);
+                        sf.setType(TypeMapUtils.GetTypeByLanuage(
+                                StringUtils.substringAfterLast(sortSchemaField.getType().getTypeName(), "."), languageType));
+                        sortModelData.addField(sf);
+                    }
 
                     modelDefinition.addModel(sortModelData);
                     modelDefinition.setKeepModel(modelData);
@@ -217,6 +203,15 @@ public class ModelGenerator {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private String getSpringPageSortCommentByName(String name) {
+        return switch (name) {
+            case "sorted" -> "Whether sorting is applied";
+            case "unsorted" -> "Whether no sorting is applied";
+            case "empty" -> "Whether sort is empty";
+            default -> "";
+        };
     }
 
     private String getSpringPageObjectCommentByName(String name) {

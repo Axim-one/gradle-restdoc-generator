@@ -2,6 +2,7 @@ package one.axim.gradle;
 
 import one.axim.gradle.data.*;
 import one.axim.gradle.utils.SpringPageSchema;
+import one.axim.gradle.utils.SpringPageSortSchema;
 import one.axim.gradle.utils.XPageSchema;
 import one.axim.gradle.generator.LanguageType;
 import one.axim.gradle.generator.ModelGenerator;
@@ -561,11 +562,7 @@ public class PostmanSpecConverter {
 
         if (apiDefinition.getReturnClass() != null && !apiDefinition.getReturnClass().toLowerCase().equals("void")) {
 
-            String pagingType = apiDefinition.getPagingType();
-            if (pagingType == null && apiDefinition.getIsPaging()) {
-                pagingType = PagingType.XPAGE;
-            }
-            Object body = makeModel(loadModel(apiDefinition.getReturnClass()), pagingType);
+            Object body = makeModel(loadModel(apiDefinition.getReturnClass()), apiDefinition.getEffectivePagingType());
 
             try {
                 responseData.setBody(objectMapper.writeValueAsString(body));
@@ -838,11 +835,11 @@ public class PostmanSpecConverter {
                 }
             }
 
-            // sort 중첩 객체
+            // sort 중첩 객체 (SpringPageSortSchema 기반)
             HashMap<String, Object> sortObj = new HashMap<>();
-            sortObj.put("sorted", "boolean");
-            sortObj.put("unsorted", "boolean");
-            sortObj.put("empty", "boolean");
+            for (Field sortField : SpringPageSortSchema.class.getDeclaredFields()) {
+                sortObj.put(sortField.getName(), sortField.getType().getTypeName());
+            }
             reqObj.put("sort", sortObj);
 
         } else {

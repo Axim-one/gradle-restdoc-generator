@@ -22,6 +22,12 @@ import java.util.stream.Collectors;
 
 public class RestApiDocGenerator {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    private static final String SPRING_PAGE = "org.springframework.data.domain.Page";
+    private static final String SPRING_PAGEABLE = "org.springframework.data.domain.Pageable";
+    private static final String SPRING_SORT = "org.springframework.data.domain.Sort";
+    private static final String XPAGE_PREFIX = "one.axim.framework.core.data.XPage";
+
     private File docDir;
     private String basePackage;
     private List<ClassUtils> classUtils;
@@ -278,10 +284,10 @@ public class RestApiDocGenerator {
             Log.i("API", "Parameter : " + parameterName + " annotation : " + parameter.getAnnotatedType());
 
             // Spring Pageable 파라미터 감지
-            if (parameterType.equals("org.springframework.data.domain.Pageable")) {
-                parameterHashMap.put("page", createQueryParameter("page", "Integer", "int", "Page number (0-based)", "0"));
-                parameterHashMap.put("size", createQueryParameter("size", "Integer", "int", "Page size", "20"));
-                parameterHashMap.put("sort", createQueryParameter("sort", "String", "String", "Sort criteria (e.g. property,asc|desc)", null));
+            if (parameterType.equals(SPRING_PAGEABLE)) {
+                parameterHashMap.put("page", createQueryParameter("page", "java.lang.Integer", "int", "Page number (0-based)", "0"));
+                parameterHashMap.put("size", createQueryParameter("size", "java.lang.Integer", "int", "Page size", "20"));
+                parameterHashMap.put("sort", createQueryParameter("sort", "java.lang.String", "String", "Sort criteria (e.g. property,asc|desc)", null));
                 continue;
             }
 
@@ -553,12 +559,12 @@ public class RestApiDocGenerator {
                 } else {
                     return;
                 }
-            } else if (returnType.getCanonicalName().startsWith("one.axim.framework.core.data.XPage")) {
+            } else if (returnType.getCanonicalName().startsWith(XPAGE_PREFIX)) {
                 apiDefinition.setIsPaging(true);
                 apiDefinition.setPagingType(PagingType.XPAGE);
                 Type genericType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
                 returnValueType = genericType.getTypeName();
-            } else if (returnType.getCanonicalName().equals("org.springframework.data.domain.Page")) {
+            } else if (returnType.getCanonicalName().equals(SPRING_PAGE)) {
                 apiDefinition.setIsPaging(true);
                 apiDefinition.setPagingType(PagingType.SPRING);
                 Type genericType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
@@ -581,14 +587,14 @@ public class RestApiDocGenerator {
                             if (!(innerType instanceof TypeVariable)) {
                                 returnValueType = innerType.getTypeName();
                             }
-                        } else if (rawName.startsWith("one.axim.framework.core.data.XPage")) {
+                        } else if (rawName.startsWith(XPAGE_PREFIX)) {
                             apiDefinition.setIsPaging(true);
                             apiDefinition.setPagingType(PagingType.XPAGE);
                             Type innerType = pt.getActualTypeArguments()[0];
                             if (!(innerType instanceof TypeVariable)) {
                                 returnValueType = innerType.getTypeName();
                             }
-                        } else if (rawName.equals("org.springframework.data.domain.Page")) {
+                        } else if (rawName.equals(SPRING_PAGE)) {
                             apiDefinition.setIsPaging(true);
                             apiDefinition.setPagingType(PagingType.SPRING);
                             Type innerType = pt.getActualTypeArguments()[0];
@@ -678,12 +684,12 @@ public class RestApiDocGenerator {
             }
 
             String clsName = cls.getName();
-            if (clsName.startsWith("one.axim.framework.core.data.XPage") ||
+            if (clsName.startsWith(XPAGE_PREFIX) ||
                 clsName.equals("one.axim.framework.core.data.XPageNation") ||
                 clsName.equals("one.axim.framework.core.data.XOrder") ||
-                clsName.equals("org.springframework.data.domain.Page") ||
-                clsName.equals("org.springframework.data.domain.Pageable") ||
-                clsName.equals("org.springframework.data.domain.Sort") ||
+                clsName.equals(SPRING_PAGE) ||
+                clsName.equals(SPRING_PAGEABLE) ||
+                clsName.equals(SPRING_SORT) ||
                 cls.isAssignableFrom(List.class) || cls.isAssignableFrom(ArrayList.class)) {
                 return;
             }
@@ -1035,8 +1041,8 @@ public class RestApiDocGenerator {
                     return type; // List<X> 그대로 반환
                 }
                 // Page/XPage 계열이면 여기서 멈춤 (페이징 반환 처리를 위해)
-                if (rawName.equals("org.springframework.data.domain.Page") ||
-                    rawName.startsWith("one.axim.framework.core.data.XPage")) {
+                if (rawName.equals(SPRING_PAGE) ||
+                    rawName.startsWith(XPAGE_PREFIX)) {
                     return type;
                 }
             }

@@ -208,6 +208,14 @@ public class APIDefinition {
         this.pagingType = pagingType;
     }
 
+    /**
+     * pagingType을 반환하되, null이면서 isPaging=true인 경우 하위호환을 위해 "xpage"를 반환한다.
+     */
+    public String getEffectivePagingType() {
+        if (pagingType != null) return pagingType;
+        return isPaging ? PagingType.XPAGE : null;
+    }
+
     public String getGroupId() {
         return groupId;
     }

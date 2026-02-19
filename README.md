@@ -8,6 +8,8 @@ Spring Boot `@RestController`에서 Javadoc 기반으로 REST API 문서를 자�
 
 - `@RestController` 클래스를 스캔하여 API 메타데이터(JSON) 자동 생성
 - Javadoc 커스텀 태그(`@response`, `@group`, `@auth`, `@header`)로 풍부한 문서화
+- Spring `Pageable` 파라미터 자동 인식 → `page`, `size`, `sort` 쿼리 파라미터 생성
+- Spring `Page<T>` 리턴 타입 자동 인식 → 페이지네이션 응답 모델 생성
 - Postman Collection v2.1 자동 동기화 (기존 값 merge 지원)
 - Postman Environment 변수 관리
 
@@ -21,7 +23,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.1'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.2'
     }
 }
 
@@ -48,7 +50,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.1'
+    id 'gradle-restdoc-generator' version '2.0.2'
 }
 ```
 
@@ -125,6 +127,20 @@ public UserDto getUser(@PathVariable Long userId) { ... }
 | `@auth true` | 인증이 필요한 엔드포인트 표시 |
 | `@header {name} {desc}` | 커스텀 헤더 문서화 |
 | `@className` | 생성되는 클래스명 오버라이드 |
+
+## Pagination Support
+
+Spring Data의 `Pageable`/`Page<T>`를 자동으로 인식합니다:
+
+```java
+@GetMapping(name = "사용자 페이징 조회", value = "/paged")
+public Page<UserDto> getUsers(Pageable pageable) { ... }
+```
+
+자동 생성되는 내용:
+- **쿼리 파라미터**: `page` (default: 0), `size` (default: 20), `sort`
+- **응답 모델**: `content`, `totalElements`, `totalPages`, `size`, `number`, `numberOfElements`, `first`, `last`, `empty`, `sort`
+- **API JSON**: `isPaging: true`, `pagingType: "spring"`
 
 ## Usage
 

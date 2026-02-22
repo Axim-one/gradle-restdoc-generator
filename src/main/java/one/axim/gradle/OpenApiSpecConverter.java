@@ -124,7 +124,10 @@ public class OpenApiSpecConverter {
 
         for (APIDefinition api : this.apiList) {
             // Convert URL to OpenAPI path format: /v1.0/users/{id}
-            String path = "/" + serviceDefinition.getVersion() + api.getUrlMapping();
+            String version = serviceDefinition.getVersion();
+            String path = (version != null && !version.isEmpty())
+                    ? "/" + version + api.getUrlMapping()
+                    : api.getUrlMapping();
 
             @SuppressWarnings("unchecked")
             Map<String, Object> pathItem = (Map<String, Object>) paths.computeIfAbsent(path, k -> new LinkedHashMap<>());

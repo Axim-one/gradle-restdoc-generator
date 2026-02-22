@@ -603,7 +603,11 @@ public class PostmanSpecConverter {
 
     private String getRawUrl(APIDefinition definition) {
 
-        return getHost() + "/" + serviceDefinition.getVersion() + replacePath(definition.getUrlMapping());
+        String version = serviceDefinition.getVersion();
+        if (version != null && !version.isEmpty()) {
+            return getHost() + "/" + version + replacePath(definition.getUrlMapping());
+        }
+        return getHost() + replacePath(definition.getUrlMapping());
     }
 
     private ArrayList<PathVariableData> getPathVariable(APIDefinition apiDefinition) {
@@ -794,9 +798,17 @@ public class PostmanSpecConverter {
 
     private String[] getUrlPaths(APIDefinition apiDefinition) {
 
+        String version = serviceDefinition.getVersion();
         String[] paths = StringUtils.splitPreserveAllTokens(apiDefinition.getUrlMapping(), "/");
 
-        paths[0] = serviceDefinition.getVersion();
+        if (version != null && !version.isEmpty()) {
+            paths[0] = version;
+        } else {
+            // version 미사용 시 빈 첫 번째 요소 제거
+            if (paths.length > 1 && (paths[0] == null || paths[0].isEmpty())) {
+                paths = java.util.Arrays.copyOfRange(paths, 1, paths.length);
+            }
+        }
 
         return paths;
     }

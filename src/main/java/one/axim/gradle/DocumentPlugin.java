@@ -21,7 +21,7 @@ import java.util.Arrays;
  * <h3>Usage in {@code build.gradle}:</h3>
  * <pre>{@code
  * plugins {
- *     id 'gradle-restdoc-generator' version '2.0.5'
+ *     id 'gradle-restdoc-generator' version '2.0.6'
  * }
  *
  * restMetaGenerator {

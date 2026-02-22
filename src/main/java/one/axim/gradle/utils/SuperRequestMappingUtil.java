@@ -33,7 +33,7 @@ public class SuperRequestMappingUtil {
         if (annotation != null) {
             Object val = AnnotationHelper.getValue(annotation);
             if (val instanceof String[])
-                return ((String[]) val)[0];
+                return ((String[]) val).length > 0 ? ((String[]) val)[0] : "";
             else if (val != null)
                 return val.toString();
         }

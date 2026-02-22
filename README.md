@@ -28,7 +28,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.5'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.6'
     }
 }
 
@@ -55,7 +55,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.5'
+    id 'gradle-restdoc-generator' version '2.0.6'
 }
 ```
 
@@ -116,7 +116,7 @@ restMetaGenerator {
 | `serviceId` | **Yes** | — | 서비스 고유 ID (JSON 파일명으로 사용) |
 | `serviceName` | No | `""` | 서비스 표시명 (OpenAPI title) |
 | `apiServerUrl` | No | `""` | API 서버 기본 URL (OpenAPI servers) |
-| `serviceVersion` | No | `"v1.0"` | API 버전 (OpenAPI version) |
+| `serviceVersion` | No | `"v1.0"` | API 버전 (OpenAPI version). null 또는 빈 값이면 URL에 버전 prefix를 추가하지 않음 |
 | `introductionFile` | No | `""` | 서비스 소개 마크다운 파일 경로 |
 | `errorCodeClass` | No | `""` | ErrorCode 클래스 FQCN (미지정 시 프레임워크 기본값) |
 | `errorResponseClass` | No | `""` | Error Response DTO FQCN (미지정 시 프레임워크 기본값) |
@@ -395,6 +395,10 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - Spring Boot (`@RestController`, `@RequestMapping` 등)
 
 ## Changelog
+
+### v2.0.6
+- `serviceVersion`이 null 또는 빈 값일 때 버전 prefix를 생략하도록 수정 (`//path` → `/path`)
+- `@GetMapping` 등에 path를 지정하지 않은 메서드에서 `ArrayIndexOutOfBoundsException` 발생하던 버그 수정
 
 ### v2.0.5
 - `errorResponseClass` DSL 프로퍼티 추가 — Error Response 모델 클래스를 명시적으로 지정 가능

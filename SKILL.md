@@ -7,7 +7,7 @@ description: Auto-generate REST API documentation from Spring Boot controllers u
 
 A Gradle plugin that auto-generates REST API documentation by scanning Spring Boot `@RestController` classes and their Javadoc comments.
 
-**Version:** 2.0.5
+**Version:** 2.0.6
 **Requirements:** Java 17+, Gradle 7.0+, Spring Boot
 **Repository:** https://github.com/Axim-one/gradle-restdoc-generator
 
@@ -21,7 +21,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.5'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.6'
     }
 }
 
@@ -48,7 +48,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.5'
+    id 'gradle-restdoc-generator' version '2.0.6'
 }
 ```
 
@@ -307,6 +307,7 @@ The `restMetaGenerator` task runs in this order:
 
 ## Changelog
 
+- **v2.0.6** — Fixed empty version causing `//path`, fixed ArrayIndexOutOfBoundsException for path-less mappings
 - **v2.0.5** — Added `errorResponseClass` DSL property
 - **v2.0.4** — OpenAPI 3.0.3, spec-bundle.json, error code scanning, @error/@throws tags
 - **v2.0.3** — Fixed inner class enum ClassNotFoundException

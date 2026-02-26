@@ -53,9 +53,7 @@ public class MethodComment {
     }
 
     public String getDescription() {
-        String desc = javadoc.getDescription().toText().trim();
-        desc = desc.replaceAll("\\n", "<br>");
-        return desc;
+        return javadoc.getDescription().toText().trim();
     }
 
     public List<CommentTag> getTags() {

@@ -28,7 +28,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.6'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.7'
     }
 }
 
@@ -55,7 +55,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.6'
+    id 'gradle-restdoc-generator' version '2.0.7'
 }
 ```
 
@@ -78,13 +78,31 @@ restMetaGenerator {
     errorCodeClass = 'com.example.exception.ErrorCode'         // ErrorCode 클래스 FQCN
     errorResponseClass = 'com.example.dto.ApiErrorResponse'    // Error Response DTO FQCN (v2.0.5+)
 
-    // 인증 설정
+    // 인증 설정 — API Key (type='token'도 하위 호환)
     auth {
-        type = 'token'
-        headerKey = 'Authorization'
-        value = 'Bearer {{token}}'
-        descriptionFile = 'docs/auth.md'         // 인증 설명 마크다운
+        type = 'apiKey'                           // 또는 'token' (하위 호환 alias)
+        headerKey = 'Access-Token'
+        value = '{{accessToken}}'
+        in = 'header'                             // 'header' (기본값), 'query', 'cookie'
+        descriptionFile = 'docs/auth.md'          // 인증 설명 마크다운
     }
+
+    // 인증 설정 — Bearer (v2.0.7+)
+    // auth {
+    //     type = 'http'
+    //     scheme = 'bearer'
+    //     bearerFormat = 'JWT'                    // 선택사항
+    //     value = '{{accessToken}}'
+    //     descriptionFile = 'docs/auth.md'
+    // }
+
+    // 인증 설정 — Basic (v2.0.7+)
+    // auth {
+    //     type = 'http'
+    //     scheme = 'basic'
+    //     value = '{{username}}:{{password}}'
+    //     descriptionFile = 'docs/auth.md'
+    // }
 
     // 공통 헤더
     header('X-Custom-Header', 'default-value', 'Header description')
@@ -123,6 +141,28 @@ restMetaGenerator {
 | `postmanApiKey` | No | `""` | Postman API Key (비어있으면 Postman 동기화 스킵) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
 | `debug` | **Yes** | `false` | 디버그 로깅 활성화 |
+
+### Auth DSL 프로퍼티 (v2.0.7+)
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `type` | `""` | 인증 타입: `"token"`/`"apiKey"` (API Key) 또는 `"http"` (Bearer/Basic) |
+| `headerKey` | `""` | 헤더/파라미터 이름 (apiKey 타입 전용) |
+| `value` | `""` | 인증 값 (토큰 값, Basic의 경우 `"user:pass"`) |
+| `descriptionFile` | `""` | 인증 설명 마크다운 파일 경로 |
+| `in` | `"header"` | apiKey 위치: `"header"`, `"query"`, `"cookie"` |
+| `scheme` | `""` | HTTP 인증 스킴: `"bearer"`, `"basic"` (http 타입 전용) |
+| `bearerFormat` | `""` | 토큰 포맷 힌트, 예: `"JWT"` (bearer 전용) |
+
+**OpenAPI 3.0 securitySchemes 매핑:**
+- `type='apiKey'` → `{ type: "apiKey", in: "header", name: "Access-Token" }`
+- `type='http'`, `scheme='bearer'` → `{ type: "http", scheme: "bearer", bearerFormat: "JWT" }`
+- `type='http'`, `scheme='basic'` → `{ type: "http", scheme: "basic" }`
+
+**Postman 인증 타입 매핑:**
+- `apiKey`/`token` → Postman `"apikey"`
+- `http` + `bearer` → Postman `"bearer"`
+- `http` + `basic` → Postman `"basic"`
 
 ## Javadoc Tags
 
@@ -303,7 +343,7 @@ build/docs/
     "apiServerUrl": "https://api.example.com",
     "version": "v1.0",
     "introduction": "...",
-    "auth": { "type": "token", "headerKey": "Authorization", ... },
+    "auth": { "type": "apiKey", "headerKey": "Access-Token", "in": "header", ... },
     "headers": [...]
   },
   "apis": [
@@ -395,6 +435,14 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - Spring Boot (`@RestController`, `@RequestMapping` 등)
 
 ## Changelog
+
+### v2.0.7
+- Auth DSL 확장: OpenAPI 3.0 securitySchemes 완전 지원
+  - `apiKey` 타입: `in` 프로퍼티 추가 (`"header"`, `"query"`, `"cookie"`)
+  - `http` 타입: `scheme` (`"bearer"`, `"basic"`), `bearerFormat` 프로퍼티 추가
+  - `type='token'`은 `'apiKey'`로 자동 정규화 (하위 호환)
+- Postman 인증 타입 매핑: Bearer (`"bearer"`), Basic (`"basic"`) 지원
+- OpenAPI securitySchemes에서 `"token"` 하드코딩 제거, 동적 스킴 이름 생성
 
 ### v2.0.6
 - `serviceVersion`이 null 또는 빈 값일 때 버전 prefix를 생략하도록 수정 (`//path` → `/path`)

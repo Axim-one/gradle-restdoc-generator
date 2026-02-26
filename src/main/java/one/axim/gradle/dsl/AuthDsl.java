@@ -17,6 +17,15 @@ public class AuthDsl {
     @Input @Optional
     private String descriptionFile = "";
 
+    @Input @Optional
+    private String in = "header";
+
+    @Input @Optional
+    private String scheme = "";
+
+    @Input @Optional
+    private String bearerFormat = "";
+
     public String getType() {
         return type;
     }
@@ -47,5 +56,29 @@ public class AuthDsl {
 
     public void setDescriptionFile(String descriptionFile) {
         this.descriptionFile = descriptionFile;
+    }
+
+    public String getIn() {
+        return in;
+    }
+
+    public void setIn(String in) {
+        this.in = in;
+    }
+
+    public String getScheme() {
+        return scheme;
+    }
+
+    public void setScheme(String scheme) {
+        this.scheme = scheme;
+    }
+
+    public String getBearerFormat() {
+        return bearerFormat;
+    }
+
+    public void setBearerFormat(String bearerFormat) {
+        this.bearerFormat = bearerFormat;
     }
 }

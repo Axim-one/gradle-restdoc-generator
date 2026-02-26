@@ -5,6 +5,9 @@ public class APIAuthData {
     private String headerKey;
     private String value;
     private String description;
+    private String in = "header";
+    private String scheme;
+    private String bearerFormat;
 
     public String getType() {
         return type;
@@ -36,5 +39,29 @@ public class APIAuthData {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getIn() {
+        return in;
+    }
+
+    public void setIn(String in) {
+        this.in = in;
+    }
+
+    public String getScheme() {
+        return scheme;
+    }
+
+    public void setScheme(String scheme) {
+        this.scheme = scheme;
+    }
+
+    public String getBearerFormat() {
+        return bearerFormat;
+    }
+
+    public void setBearerFormat(String bearerFormat) {
+        this.bearerFormat = bearerFormat;
     }
 }

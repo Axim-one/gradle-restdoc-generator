@@ -8,6 +8,7 @@ import one.axim.gradle.generator.data.FieldData;
 import one.axim.gradle.generator.data.ModelData;
 import one.axim.gradle.generator.data.ModelDefinition;
 import one.axim.gradle.generator.utils.TypeMapUtils;
+import one.axim.gradle.utils.TextEscapeUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import org.apache.commons.io.FileUtils;
@@ -160,7 +161,7 @@ public class ModelGenerator {
                 for (APIField field : apiModel.getFields()) {
                     FieldData fieldData = new FieldData();
                     fieldData.setName(field.getName());
-                    fieldData.setComment(field.getDescription() == null ? "" : StringUtils.replace(field.getDescription(), "|", "\\|"));
+                    fieldData.setComment(TextEscapeUtils.escapeForMarkdownTable(field.getDescription()));
                     fieldData.setOptional(field.isOptional());
                     fieldData.setEnum(false);
                     fieldData.setClassPath(field.getClassPath());

@@ -7,7 +7,7 @@ description: Auto-generate REST API documentation from Spring Boot controllers u
 
 A Gradle plugin that auto-generates REST API documentation by scanning Spring Boot `@RestController` classes and their Javadoc comments.
 
-**Version:** 2.0.6
+**Version:** 2.0.7
 **Requirements:** Java 17+, Gradle 7.0+, Spring Boot
 **Repository:** https://github.com/Axim-one/gradle-restdoc-generator
 
@@ -21,7 +21,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.6'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.7'
     }
 }
 
@@ -71,13 +71,31 @@ restMetaGenerator {
     errorCodeClass = 'com.example.exception.ErrorCode'
     errorResponseClass = 'com.example.dto.ApiErrorResponse'    // v2.0.5+
 
-    // Authentication (optional)
+    // Authentication — apiKey (optional, type='token' also works)
     auth {
-        type = 'token'
-        headerKey = 'Authorization'
-        value = 'Bearer {{token}}'
+        type = 'apiKey'           // or 'token' (backward-compatible alias)
+        headerKey = 'Access-Token'
+        value = '{{accessToken}}'
+        in = 'header'             // 'header' (default), 'query', 'cookie'
         descriptionFile = 'docs/auth.md'
     }
+
+    // Authentication — Bearer (v2.0.7+)
+    // auth {
+    //     type = 'http'
+    //     scheme = 'bearer'
+    //     bearerFormat = 'JWT'    // optional
+    //     value = '{{accessToken}}'
+    //     descriptionFile = 'docs/auth.md'
+    // }
+
+    // Authentication — Basic (v2.0.7+)
+    // auth {
+    //     type = 'http'
+    //     scheme = 'basic'
+    //     value = '{{username}}:{{password}}'
+    //     descriptionFile = 'docs/auth.md'
+    // }
 
     // Common headers (optional)
     header('X-Custom-Header', 'default-value', 'Header description')
@@ -116,6 +134,18 @@ restMetaGenerator {
 | `postmanApiKey` | No | `""` | Postman API Key (empty = skip sync) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
 | `debug` | **Yes** | `false` | Enable debug logging |
+
+### Auth DSL Properties (v2.0.7+)
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `type` | `""` | Auth type: `"token"`/`"apiKey"` (API key) or `"http"` (Bearer/Basic) |
+| `headerKey` | `""` | Header/parameter name (apiKey type only) |
+| `value` | `""` | Auth value (token, `"user:pass"` for basic) |
+| `descriptionFile` | `""` | Markdown file path for auth description |
+| `in` | `"header"` | apiKey location: `"header"`, `"query"`, `"cookie"` |
+| `scheme` | `""` | HTTP auth scheme: `"bearer"`, `"basic"` (http type only) |
+| `bearerFormat` | `""` | Token format hint, e.g. `"JWT"` (bearer only) |
 
 ## Javadoc Tags
 
@@ -307,6 +337,7 @@ The `restMetaGenerator` task runs in this order:
 
 ## Changelog
 
+- **v2.0.7** — Auth DSL extension: `apiKey`/`http` (Bearer/Basic) support for OpenAPI securitySchemes and Postman auth
 - **v2.0.6** — Fixed empty version causing `//path`, fixed ArrayIndexOutOfBoundsException for path-less mappings
 - **v2.0.5** — Added `errorResponseClass` DSL property
 - **v2.0.4** — OpenAPI 3.0.3, spec-bundle.json, error code scanning, @error/@throws tags

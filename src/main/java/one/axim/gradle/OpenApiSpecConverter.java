@@ -76,6 +76,13 @@ public class OpenApiSpecConverter {
         root.put("paths", buildPaths());
         root.put("components", buildComponents());
 
+        // Global security: all endpoints require auth by default when auth is configured
+        String globalSchemeName = getSecuritySchemeName(serviceDefinition.getAuth());
+        if (globalSchemeName != null) {
+            root.put("security", Collections.singletonList(
+                    Collections.singletonMap(globalSchemeName, Collections.emptyList())));
+        }
+
         File outputFile = new File(this.documentPath, "openapi.json");
         String json = objectMapper.writeValueAsString(root);
         Files.write(outputFile.toPath(), json.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -163,11 +170,9 @@ public class OpenApiSpecConverter {
 
         operation.put("responses", buildResponses(api));
 
-        // Security: if needs session and auth is configured
-        if (api.isNeedsSession() && serviceDefinition.getAuth() != null
-                && "token".equals(serviceDefinition.getAuth().getType())) {
-            operation.put("security", Collections.singletonList(
-                    Collections.singletonMap("ApiKeyAuth", Collections.emptyList())));
+        // Security opt-out: endpoints without @auth or with @auth false override global security
+        if (!api.isNeedsSession() && getSecuritySchemeName(serviceDefinition.getAuth()) != null) {
+            operation.put("security", Collections.emptyList());
         }
 
         return operation;
@@ -609,20 +614,48 @@ public class OpenApiSpecConverter {
         return schema;
     }
 
+    private String getSecuritySchemeName(APIAuthData auth) {
+        if (auth == null) return null;
+        String type = auth.getType();
+        if ("apiKey".equals(type) || "token".equals(type)) {
+            return "ApiKeyAuth";
+        } else if ("http".equals(type)) {
+            if ("basic".equals(auth.getScheme())) {
+                return "BasicAuth";
+            }
+            return "BearerAuth";
+        }
+        return null;
+    }
+
     private Map<String, Object> buildSecuritySchemes() {
         Map<String, Object> schemes = new LinkedHashMap<>();
+        APIAuthData auth = serviceDefinition.getAuth();
+        if (auth == null) return schemes;
 
-        if (serviceDefinition.getAuth() != null && "token".equals(serviceDefinition.getAuth().getType())) {
-            Map<String, Object> apiKeyScheme = new LinkedHashMap<>();
-            apiKeyScheme.put("type", "apiKey");
-            apiKeyScheme.put("in", "header");
-            apiKeyScheme.put("name", serviceDefinition.getAuth().getHeaderKey());
-            if (!StringUtils.isEmpty(serviceDefinition.getAuth().getDescription())) {
-                apiKeyScheme.put("description", serviceDefinition.getAuth().getDescription());
+        String schemeName = getSecuritySchemeName(auth);
+        if (schemeName == null) return schemes;
+
+        String type = auth.getType();
+        Map<String, Object> scheme = new LinkedHashMap<>();
+
+        if ("apiKey".equals(type) || "token".equals(type)) {
+            scheme.put("type", "apiKey");
+            scheme.put("in", StringUtils.defaultIfEmpty(auth.getIn(), "header"));
+            scheme.put("name", auth.getHeaderKey());
+        } else if ("http".equals(type)) {
+            scheme.put("type", "http");
+            scheme.put("scheme", auth.getScheme());
+            if (!StringUtils.isEmpty(auth.getBearerFormat())) {
+                scheme.put("bearerFormat", auth.getBearerFormat());
             }
-            schemes.put("ApiKeyAuth", apiKeyScheme);
         }
 
+        if (!StringUtils.isEmpty(auth.getDescription())) {
+            scheme.put("description", auth.getDescription());
+        }
+
+        schemes.put(schemeName, scheme);
         return schemes;
     }
 

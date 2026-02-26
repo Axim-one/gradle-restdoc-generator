@@ -3,6 +3,7 @@ package one.axim.gradle;
 import one.axim.gradle.data.*;
 import one.axim.gradle.utils.SpringPageSchema;
 import one.axim.gradle.utils.SpringPageSortSchema;
+import one.axim.gradle.utils.TextEscapeUtils;
 import one.axim.gradle.utils.XPageSchema;
 import one.axim.gradle.generator.LanguageType;
 import one.axim.gradle.generator.ModelGenerator;
@@ -119,14 +120,31 @@ public class PostmanSpecConverter {
         System.out.println("infomation data generate complete");
 
         final AuthData authData = new AuthData();
-        if (this.serviceDefinition.getAuth() != null && this.serviceDefinition.getAuth().getType().equals("token")) {
+        if (this.serviceDefinition.getAuth() != null && !StringUtils.isEmpty(this.serviceDefinition.getAuth().getType())) {
+            APIAuthData auth = this.serviceDefinition.getAuth();
+            String authType = auth.getType();
 
-            authData.setType("apikey");
-            authData.setApiKey(new ArrayList<>() {{
-                add(new AuthKeyData("string", "key", serviceDefinition.getAuth().getHeaderKey()));
-                add(new AuthKeyData("string", "value", serviceDefinition.getAuth().getValue()));
-            }});
-        } // TODO :: JWT, 또는 다른 인증 방식에 대해서도 추가로 정의 해보자
+            if ("apiKey".equals(authType) || "token".equals(authType)) {
+                authData.setType("apikey");
+                authData.setApiKey(new ArrayList<>() {{
+                    add(new AuthKeyData("string", "key", auth.getHeaderKey()));
+                    add(new AuthKeyData("string", "value", auth.getValue()));
+                }});
+            } else if ("http".equals(authType) && "bearer".equals(auth.getScheme())) {
+                authData.setType("bearer");
+                authData.setBearer(new ArrayList<>() {{
+                    add(new AuthKeyData("string", "token", auth.getValue()));
+                }});
+            } else if ("http".equals(authType) && "basic".equals(auth.getScheme())) {
+                authData.setType("basic");
+                String value = auth.getValue() != null ? auth.getValue() : "";
+                String[] parts = value.contains(":") ? value.split(":", 2) : new String[]{value, ""};
+                authData.setBasic(new ArrayList<>() {{
+                    add(new AuthKeyData("string", "username", parts[0]));
+                    add(new AuthKeyData("string", "password", parts[1]));
+                }});
+            }
+        }
 
         if (collectionId != null) {
 
@@ -513,7 +531,7 @@ public class PostmanSpecConverter {
 
                 ParameterData parameterData = new ParameterData();
                 parameterData.setName(variableData.getName());
-                parameterData.setComment(StringUtils.replace(variableData.getDescription(), "|", "\\|"));
+                parameterData.setComment(TextEscapeUtils.escapeForMarkdownTable(variableData.getDescription()));
                 parameterData.setOptional(variableData.isOptional());
                 parameterData.setType(variableData.getOriginType());
                 parameterData.setClassPath(variableData.getClassPath());
@@ -533,7 +551,7 @@ public class PostmanSpecConverter {
 
                 ParameterData parameterData = new ParameterData();
                 parameterData.setName(queryData.getKey());
-                parameterData.setComment(StringUtils.replace(queryData.getDescription(), "|", "\\|"));
+                parameterData.setComment(TextEscapeUtils.escapeForMarkdownTable(queryData.getDescription()));
                 parameterData.setOptional(queryData.isOptional());
                 parameterData.setType(queryData.getOriginType());
                 parameterData.setClassPath(queryData.getClassPath());
@@ -681,7 +699,7 @@ public class PostmanSpecConverter {
 
                     QueryData queryData = new QueryData();
                     queryData.setKey(apiParameter.getName());
-                    queryData.setDescription(StringUtils.replace(apiParameter.getDescription(), "|", "\\|"));
+                    queryData.setDescription(TextEscapeUtils.escapeForMarkdownTable(apiParameter.getDescription()));
 
 
                     if (apiParameter.getIsEnum() || apiParameter.getType().equals("Enum")) {

@@ -476,9 +476,18 @@ public class RestMetaGeneratorTask extends DefaultTask {
         // auth 설정
         if (!StringUtils.isEmpty(this.authConfig.getType())) {
             APIAuthData authData = new APIAuthData();
-            authData.setType(this.authConfig.getType());
+
+            // type 정규화: "token" → "apiKey" (하위 호환성 유지)
+            String authType = this.authConfig.getType();
+            if ("token".equals(authType)) {
+                authType = "apiKey";
+            }
+            authData.setType(authType);
             authData.setHeaderKey(this.authConfig.getHeaderKey());
             authData.setValue(this.authConfig.getValue());
+            authData.setIn(this.authConfig.getIn());
+            authData.setScheme(this.authConfig.getScheme());
+            authData.setBearerFormat(this.authConfig.getBearerFormat());
 
             // descriptionFile → 파일 읽어서 description에 설정
             if (!StringUtils.isEmpty(this.authConfig.getDescriptionFile())) {

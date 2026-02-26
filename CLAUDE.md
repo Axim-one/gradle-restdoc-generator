@@ -43,9 +43,16 @@ The `restMetaGenerator` task accepts these DSL properties:
 - `errorResponseClass` — FQCN of the error response DTO (default: `one.axim.framework.rest.model.ApiError`) *(v2.0.5+)*
 
 **Nested DSL methods:**
-- `auth { type, headerKey, value, descriptionFile }` — authentication configuration
+- `auth { type, headerKey, value, descriptionFile, in, scheme, bearerFormat }` — authentication configuration (supports `apiKey`/`token`, `http` with `bearer`/`basic`)
 - `header(name, defaultValue, description)` — add a common header
 - `environment(name) { variable(key, value) }` — Postman environment variables
+
+**Auth DSL types** *(v2.0.7+)*:
+- `type='token'` or `type='apiKey'` — API key auth (`in`: `"header"`/`"query"`/`"cookie"`, `headerKey`: key name)
+- `type='http'`, `scheme='bearer'` — Bearer token auth (optional `bearerFormat`, e.g. `"JWT"`)
+- `type='http'`, `scheme='basic'` — Basic auth (`value`: `"username:password"`)
+
+`type='token'` is normalized to `'apiKey'` internally for backward compatibility.
 
 ### Pipeline (executed in `RestMetaGeneratorTask.deplyTask()`)
 

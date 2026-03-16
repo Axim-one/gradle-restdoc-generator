@@ -3,6 +3,7 @@ package com.example;
 import com.example.dto.ApiResult;
 import com.example.dto.OrderDto;
 import com.example.dto.UserDto;
+import com.example.dto.UserSearchRequest;
 import com.example.dto.UserStatus;
 import com.example.exception.AuthException;
 import org.springframework.data.domain.Page;
@@ -111,6 +112,18 @@ public class SampleController {
      */
     @GetMapping(name = "사용자 페이징 조회 래핑", value = "/wrapped/paged")
     public ApiResult<Page<UserDto>> getUsersPagedWrapped(Pageable pageable) {
+        return null;
+    }
+
+    /**
+     * 사용자 검색 (복합 쿼리 파라미터)
+     *
+     * @param search 검색 조건
+     * @return 사용자 목록
+     * @group 사용자
+     */
+    @GetMapping(name = "사용자 검색", value = "/search")
+    public List<UserDto> searchUsers(UserSearchRequest search) {
         return null;
     }
 }

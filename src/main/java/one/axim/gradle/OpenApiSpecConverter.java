@@ -307,7 +307,7 @@ public class OpenApiSpecConverter {
                 Map<String, Object> responseObj = new LinkedHashMap<>();
                 responseObj.put("description", entry.getValue());
 
-                // Only add schema for success responses with a return type
+                // 성공 응답에는 반환 타입 스키마 첨부
                 if (entry.getKey().startsWith("2") && api.getReturnClass() != null
                         && !"void".equalsIgnoreCase(api.getReturnClass())) {
                     Map<String, Object> schema = buildResponseSchema(api);
@@ -318,6 +318,16 @@ public class OpenApiSpecConverter {
                         content.put("application/json", jsonType);
                         responseObj.put("content", content);
                     }
+                }
+                // 4xx/5xx 에러 응답에는 ApiError 스키마 자동 첨부
+                else if (entry.getKey().startsWith("4") || entry.getKey().startsWith("5")) {
+                    Map<String, Object> content = new LinkedHashMap<>();
+                    Map<String, Object> jsonType = new LinkedHashMap<>();
+                    Map<String, Object> schema = new LinkedHashMap<>();
+                    schema.put("$ref", "#/components/schemas/ApiError");
+                    jsonType.put("schema", schema);
+                    content.put("application/json", jsonType);
+                    responseObj.put("content", content);
                 }
 
                 responses.put(entry.getKey(), responseObj);
@@ -408,6 +418,14 @@ public class OpenApiSpecConverter {
             }
         }
 
+        // 에러 응답이 있는 경우 ApiError 스키마 자동 등록
+        boolean hasErrorResponse = this.apiList.stream().anyMatch(api ->
+                api.getResponseStatus() != null && api.getResponseStatus().keySet().stream()
+                        .anyMatch(code -> code.startsWith("4") || code.startsWith("5")));
+        if (hasErrorResponse) {
+            schemas.put("ApiError", buildApiErrorSchema());
+        }
+
         components.put("schemas", schemas);
 
         // Security schemes
@@ -421,6 +439,8 @@ public class OpenApiSpecConverter {
 
     private void collectSchema(String classPath, Map<String, Object> schemas, Set<String> processedSet) {
         if (classPath == null || processedSet.contains(classPath)) return;
+        // 알려진 인라인 타입은 별도 스키마로 등록하지 않음
+        if (isKnownInlineType(classPath)) return;
         processedSet.add(classPath);
 
         APIModelDefinition model = loadModel(classPath);
@@ -472,9 +492,21 @@ public class OpenApiSpecConverter {
         return schema;
     }
 
+    // TODO: @XApiDoc(example = "...") 어노테이션 기반 example 지원 추가 예정
+    //       현재는 타입 기반 기본값만 자동 생성. 어노테이션 정의 후 명시적 example 우선 적용으로 확장.
+
     private Map<String, Object> buildSchemaForField(APIField field) {
         switch (field.getType()) {
             case "Object": {
+                // 알려진 인라인 타입은 $ref 대신 직접 매핑 (LocalDateTime, BigDecimal 등)
+                if (isKnownInlineType(field.getClassPath())) {
+                    Map<String, Object> schema = mapOpenApiType(field.getClassPath());
+                    if (!StringUtils.isEmpty(field.getDescription())) {
+                        schema.put("description", field.getDescription());
+                    }
+                    applyDefaultExample(schema, field.getClassPath());
+                    return schema;
+                }
                 Map<String, Object> ref = new LinkedHashMap<>();
                 ref.put("$ref", "#/components/schemas/" + toSchemaName(field.getClassPath()));
                 if (!StringUtils.isEmpty(field.getDescription())) {
@@ -509,6 +541,12 @@ public class OpenApiSpecConverter {
                 if (!StringUtils.isEmpty(field.getDescription())) {
                     enumSchema.put("description", field.getDescription());
                 }
+                // enum example: 첫 번째 값 사용
+                @SuppressWarnings("unchecked")
+                List<String> enumValues = (List<String>) enumSchema.get("enum");
+                if (enumValues != null && !enumValues.isEmpty()) {
+                    enumSchema.put("example", enumValues.get(0));
+                }
                 return enumSchema;
             }
             default: {
@@ -516,6 +554,7 @@ public class OpenApiSpecConverter {
                 if (!StringUtils.isEmpty(field.getDescription())) {
                     schema.put("description", field.getDescription());
                 }
+                applyDefaultExample(schema, field.getType());
                 return schema;
             }
         }
@@ -541,6 +580,7 @@ public class OpenApiSpecConverter {
                 values.add(field.getName());
             }
             schema.put("enum", values);
+            schema.put("example", values.get(0));
         }
         if (!StringUtils.isEmpty(model.getDescription())) {
             schema.put("description", model.getDescription());
@@ -706,13 +746,17 @@ public class OpenApiSpecConverter {
             case "BigDecimal":
             case "java.math.BigDecimal":
                 schema.put("type", "number");
+                schema.put("format", "decimal");
+                break;
+            case "LocalDate":
+            case "java.time.LocalDate":
+                schema.put("type", "string");
+                schema.put("format", "date");
                 break;
             case "Date":
             case "java.util.Date":
             case "LocalDateTime":
             case "java.time.LocalDateTime":
-            case "LocalDate":
-            case "java.time.LocalDate":
             case "Instant":
             case "java.time.Instant":
             case "ZonedDateTime":
@@ -721,6 +765,11 @@ public class OpenApiSpecConverter {
             case "java.time.OffsetDateTime":
                 schema.put("type", "string");
                 schema.put("format", "date-time");
+                break;
+            case "LocalTime":
+            case "java.time.LocalTime":
+                schema.put("type", "string");
+                schema.put("format", "time");
                 break;
             default:
                 schema.put("type", "string");
@@ -754,6 +803,106 @@ public class OpenApiSpecConverter {
         }
 
         return schema;
+    }
+
+    private Map<String, Object> buildApiErrorSchema() {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("description", "API 에러 응답");
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+
+        Map<String, Object> codeProp = new LinkedHashMap<>();
+        codeProp.put("type", "string");
+        codeProp.put("description", "에러 코드");
+        properties.put("code", codeProp);
+
+        Map<String, Object> messageProp = new LinkedHashMap<>();
+        messageProp.put("type", "string");
+        messageProp.put("description", "에러 메시지");
+        properties.put("message", messageProp);
+
+        Map<String, Object> statusProp = new LinkedHashMap<>();
+        statusProp.put("type", "integer");
+        statusProp.put("description", "HTTP 상태 코드");
+        properties.put("status", statusProp);
+
+        schema.put("properties", properties);
+        return schema;
+    }
+
+    /**
+     * 알려진 Java 타입을 인라인 OpenAPI 타입으로 변환할 수 있는지 확인한다.
+     * LocalDateTime, BigDecimal 등은 별도 $ref 스키마 대신 직접 타입/포맷으로 매핑된다.
+     */
+    private boolean isKnownInlineType(String classPath) {
+        if (classPath == null) return false;
+        return classPath.startsWith("java.time.")
+                || classPath.equals("java.util.Date")
+                || classPath.equals("java.math.BigDecimal");
+    }
+
+    /**
+     * 타입 기반 기본 example 값을 스키마에 추가한다.
+     * TODO: @XApiDoc(example = "...") 어노테이션 지원 시, 명시적 값이 있으면 그것을 우선 사용하도록 확장
+     */
+    private void applyDefaultExample(Map<String, Object> schema, String typeName) {
+        if (typeName == null) return;
+        switch (typeName) {
+            case "String":
+            case "java.lang.String":
+                // String은 필드명에 따라 달라지므로 빈 문자열은 넣지 않음
+                break;
+            case "int":
+            case "Integer":
+            case "java.lang.Integer":
+                schema.put("example", 1);
+                break;
+            case "long":
+            case "Long":
+            case "java.lang.Long":
+                schema.put("example", 1);
+                break;
+            case "boolean":
+            case "Boolean":
+            case "java.lang.Boolean":
+                schema.put("example", true);
+                break;
+            case "float":
+            case "Float":
+            case "java.lang.Float":
+            case "double":
+            case "Double":
+            case "java.lang.Double":
+                schema.put("example", 0.0);
+                break;
+            case "BigDecimal":
+            case "java.math.BigDecimal":
+                schema.put("example", "100.00");
+                break;
+            case "LocalDateTime":
+            case "java.time.LocalDateTime":
+            case "Instant":
+            case "java.time.Instant":
+            case "ZonedDateTime":
+            case "java.time.ZonedDateTime":
+            case "OffsetDateTime":
+            case "java.time.OffsetDateTime":
+            case "Date":
+            case "java.util.Date":
+                schema.put("example", "2026-01-01T00:00:00");
+                break;
+            case "LocalDate":
+            case "java.time.LocalDate":
+                schema.put("example", "2026-01-01");
+                break;
+            case "LocalTime":
+            case "java.time.LocalTime":
+                schema.put("example", "12:00:00");
+                break;
+            default:
+                break;
+        }
     }
 
     // --- Naming ---

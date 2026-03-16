@@ -16,7 +16,7 @@ import java.lang.reflect.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
+
 import java.util.*;
 import java.util.stream.Collectors;
 import one.axim.gradle.data.ErrorGroupDefinition;
@@ -37,6 +37,9 @@ public class RestApiDocGenerator {
     private Set<String> basePaths;
 
     private Map<String, ErrorGroupDefinition> errorGroupMap = Collections.emptyMap();
+
+    /** operationId 중복 방지를 위한 사용된 ID 집합 */
+    private Set<String> usedOperationIds = new HashSet<>();
 
     private Map<Class<?>, Set<Method>> methodMap = new TreeMap<Class<?>, Set<Method>>(new Comparator<Class<?>>() {
         @Override
@@ -408,51 +411,60 @@ public class RestApiDocGenerator {
             // RequestHeader 가 아닐경우
             else {
 
-                APIParameter apiParameter = new APIParameter();
-                apiParameter.setName(parameterName);
-                apiParameter.setClassPath(parameterType);
-                apiParameter.setEnum(parameter.getType().isEnum());
-                apiParameter.setType(tempParameterType);
+                boolean isRequestBody = isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestBody");
+                boolean isPathVariable = isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.PathVariable");
 
-                paramKind = APIParameterKind.REQUEST_PARAMETER;
+                // @RequestParam 복합 객체: 개별 쿼리 파라미터로 전개
+                if (tempParameterType.equals("Object") && !isRequestBody && !isPathVariable) {
+                    generateQueryParameterModel(parameter.getType(), parameterHashMap);
+                } else {
+
+                    APIParameter apiParameter = new APIParameter();
+                    apiParameter.setName(parameterName);
+                    apiParameter.setClassPath(parameterType);
+                    apiParameter.setEnum(parameter.getType().isEnum());
+                    apiParameter.setType(tempParameterType);
+
+                    paramKind = APIParameterKind.REQUEST_PARAMETER;
 
 
-                if (isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestParam")) {
+                    if (isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestParam")) {
 
-                    Map<String, Object> values = getAnnotationValueMap(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestParam");
-                    boolean required = Boolean.parseBoolean(values.get("required").toString());
-                    apiParameter.setIsOptional(!required);
-                    String defaultValue = values.get("defaultValue").toString();
-                    if (defaultValue.equals("\n\t\t\n\t\t\n\uE000\uE001\uE002\n\t\t\t\t\n")) {
-                        defaultValue = "";
+                        Map<String, Object> values = getAnnotationValueMap(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestParam");
+                        boolean required = Boolean.parseBoolean(values.get("required").toString());
+                        apiParameter.setIsOptional(!required);
+                        String defaultValue = values.get("defaultValue").toString();
+                        if (defaultValue.equals("\n\t\t\n\t\t\n\uE000\uE001\uE002\n\t\t\t\t\n")) {
+                            defaultValue = "";
+                        }
+
+                        apiParameter.setDefaultValue(defaultValue);
                     }
 
-                    apiParameter.setDefaultValue(defaultValue);
-                }
-
-                if (isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.RequestBody")) {
-                    paramKind = APIParameterKind.REQUEST_BODY;
-                }
-
-                if (isHasAnnotation(parameter.getAnnotations(), "org.springframework.web.bind.annotation.PathVariable")) {
-                    Map<String, Object> values = getAnnotationValueMap(parameter.getAnnotations(), "org.springframework.web.bind.annotation.PathVariable");
-
-                    paramKind = APIParameterKind.URL_PATH;
-
-                    String pathName = values.get("value").toString();
-
-                    if (!StringUtils.isEmpty(pathName)) {
-                        apiParameter.setName(pathName);
-                    } else {
-                        apiParameter.setName(parameterName);
+                    if (isRequestBody) {
+                        paramKind = APIParameterKind.REQUEST_BODY;
                     }
 
-                    boolean required = Boolean.parseBoolean(values.get("required").toString());
-                    apiParameter.setIsOptional(!required);
-                }
+                    if (isPathVariable) {
+                        Map<String, Object> values = getAnnotationValueMap(parameter.getAnnotations(), "org.springframework.web.bind.annotation.PathVariable");
 
-                apiParameter.setParameterKind(paramKind);
-                parameterHashMap.put(parameterName, apiParameter);
+                        paramKind = APIParameterKind.URL_PATH;
+
+                        String pathName = values.get("value").toString();
+
+                        if (!StringUtils.isEmpty(pathName)) {
+                            apiParameter.setName(pathName);
+                        } else {
+                            apiParameter.setName(parameterName);
+                        }
+
+                        boolean required = Boolean.parseBoolean(values.get("required").toString());
+                        apiParameter.setIsOptional(!required);
+                    }
+
+                    apiParameter.setParameterKind(paramKind);
+                    parameterHashMap.put(parameterName, apiParameter);
+                }
             }
         }
 
@@ -576,19 +588,18 @@ public class RestApiDocGenerator {
         }
         apiDefinition.setGroup(group);
 
-        try {
-            String uniqUrl = apiDefinition.getUrlMapping() + apiDefinition.getName() + apiDefinition.getMethod();
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(uniqUrl.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : digest) {
-                hexString.append(String.format("%02x", b));
+        // operationId: 컨트롤러 메서드명 사용 (중복 시 컨트롤러 prefix 추가)
+        String operationId = method.getName();
+        if (usedOperationIds.contains(operationId)) {
+            String prefix = clazz.getSimpleName();
+            if (prefix.endsWith("Controller")) {
+                prefix = prefix.substring(0, prefix.length() - "Controller".length());
             }
-            String id = hexString.toString();
-            apiDefinition.setId(id);
-
-        } catch (Exception e) {
+            prefix = Character.toLowerCase(prefix.charAt(0)) + prefix.substring(1);
+            operationId = prefix + "_" + method.getName();
         }
+        usedOperationIds.add(operationId);
+        apiDefinition.setId(operationId);
 
         if (method.getReturnType() instanceof Class) {
             Class<?> returnType = method.getReturnType();
@@ -806,8 +817,13 @@ public class RestApiDocGenerator {
                 APIField apiField = new APIField();
                 apiField.setName(field.getName());
 
-                boolean isOptional = !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotNull")
-                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotNull");
+                boolean isOptional = !field.getType().isPrimitive()
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotNull")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotNull")
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotBlank")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotBlank")
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotEmpty")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty");
                 apiField.setOptional(isOptional);
 
                 // 상속 필드인 경우 부모 클래스의 소스에서 코멘트를 조회
@@ -833,6 +849,15 @@ public class RestApiDocGenerator {
                     if (fieldComment != null) {
                         apiField.setDescription(fieldComment);
                     }
+                }
+
+                // enum 필드 직접 감지 (getSuperClasses 실패에 의존하지 않도록)
+                if (!isEnum && field.getType().isEnum()) {
+                    apiField.setType("Enum");
+                    apiField.setClassPath(field.getType().getCanonicalName());
+                    referenceClassSet.add(field.getType().getCanonicalName());
+                    apiFields.add(apiField);
+                    continue;
                 }
 
                 boolean isObject = false;
@@ -976,10 +1001,16 @@ public class RestApiDocGenerator {
             APIParameter parameter = new APIParameter();
             parameter.setClassPath(parameterType);
             parameter.setType(tempParameterType);
+            parameter.setEnum(field.getType().isEnum());
             parameter.setDescription(fieldParser != null ? fieldParser.getFieldComment(field.getName()) : null);
 
-            boolean isOptional = !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotNull")
-                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotNull");
+            boolean isOptional = !field.getType().isPrimitive()
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotNull")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotNull")
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotBlank")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotBlank")
+                        && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotEmpty")
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty");
 
             parameter.setIsOptional(isOptional);
             parameter.setParameterKind(APIParameterKind.REQUEST_PARAMETER);

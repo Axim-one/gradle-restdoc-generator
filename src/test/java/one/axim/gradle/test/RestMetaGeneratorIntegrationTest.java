@@ -254,6 +254,7 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(apiNames.contains("사용자 단건 조회 래핑"), "사용자 단건 조회 래핑 should be processed");
         assertTrue(apiNames.contains("사용자 목록 조회 래핑"), "사용자 목록 조회 래핑 should be processed");
         assertTrue(apiNames.contains("사용자 페이징 조회 래핑"), "사용자 페이징 조회 래핑 should be processed");
+        assertTrue(apiNames.contains("사용자 검색"), "사용자 검색 should be processed");
     }
 
     @Test
@@ -544,7 +545,7 @@ public class RestMetaGeneratorIntegrationTest {
         // apis
         List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
         assertNotNull(apis, "apis should not be null");
-        assertTrue(apis.size() >= 8, "should have at least 8 APIs, got: " + apis.size());
+        assertTrue(apis.size() >= 9, "should have at least 9 APIs, got: " + apis.size());
 
         // models
         Map<String, Object> models = (Map<String, Object>) bundle.get("models");
@@ -799,6 +800,276 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(fieldNames.contains("status"), "should contain status field");
         assertTrue(fieldNames.contains("code"), "should contain code field");
         assertTrue(fieldNames.contains("message"), "should contain message field");
+    }
+
+    // --- Item 1: @RequestParam 복합 객체 → 개별 쿼리 파라미터 전개 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testComplexQueryParameterExpansion() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 검색");
+        assertNotNull(api, "사용자 검색 API should exist");
+
+        List<Map<String, Object>> params = (List<Map<String, Object>>) api.get("parameters");
+        assertNotNull(params, "parameters should not be null");
+
+        List<String> paramNames = params.stream()
+                .map(p -> (String) p.get("name"))
+                .toList();
+
+        // UserSearchRequest의 필드들이 개별 쿼리 파라미터로 전개되어야 함
+        assertTrue(paramNames.contains("name"), "should contain 'name' query param from UserSearchRequest");
+        assertTrue(paramNames.contains("status"), "should contain 'status' query param from UserSearchRequest");
+        assertTrue(paramNames.contains("networkId"), "should contain 'networkId' query param from UserSearchRequest");
+        assertTrue(paramNames.contains("active"), "should contain 'active' query param from UserSearchRequest");
+
+        // "search"라는 단일 Object 파라미터가 아닌 개별 필드로 전개됨을 확인
+        boolean hasSearchObject = paramNames.contains("search");
+        assertFalse(hasSearchObject, "should NOT have single 'search' Object parameter");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testComplexQueryParamEnumDetection() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 검색");
+        assertNotNull(api);
+
+        List<Map<String, Object>> params = (List<Map<String, Object>>) api.get("parameters");
+        Map<String, Object> statusParam = params.stream()
+                .filter(p -> "status".equals(p.get("name")))
+                .findFirst().orElse(null);
+        assertNotNull(statusParam, "status parameter should exist");
+        assertTrue((Boolean) statusParam.get("isEnum"), "status field should be detected as enum");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testComplexQueryParamRequiredFromValidation() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 검색");
+        assertNotNull(api);
+
+        List<Map<String, Object>> params = (List<Map<String, Object>>) api.get("parameters");
+
+        // @NotNull status → required (isOptional=false)
+        Map<String, Object> statusParam = params.stream()
+                .filter(p -> "status".equals(p.get("name")))
+                .findFirst().orElse(null);
+        assertNotNull(statusParam);
+        assertFalse((Boolean) statusParam.get("isOptional"), "@NotNull field should not be optional");
+
+        // primitive boolean active → required (isOptional=false)
+        Map<String, Object> activeParam = params.stream()
+                .filter(p -> "active".equals(p.get("name")))
+                .findFirst().orElse(null);
+        assertNotNull(activeParam);
+        assertFalse((Boolean) activeParam.get("isOptional"), "primitive field should not be optional");
+
+        // String name → optional (isOptional=true)
+        Map<String, Object> nameParam = params.stream()
+                .filter(p -> "name".equals(p.get("name")))
+                .findFirst().orElse(null);
+        assertNotNull(nameParam);
+        assertTrue((Boolean) nameParam.get("isOptional"), "unannotated String field should be optional");
+    }
+
+    // --- Item 2: operationId 의미있는 이름 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOperationIdIsMeaningfulMethodName() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        for (Map<String, Object> api : apis) {
+            String id = (String) api.get("id");
+            assertNotNull(id, "operationId should not be null");
+            // operationId는 MD5 해시가 아닌 의미있는 이름이어야 함
+            assertFalse(id.matches("[0-9a-f]{32}"),
+                    "operationId should not be MD5 hash. Got: " + id + " for API: " + api.get("name"));
+        }
+
+        // 특정 메서드명 확인
+        Map<String, Object> getUserApi = findApiByName(apis, "사용자 상세 조회");
+        assertNotNull(getUserApi);
+        assertEquals("getUser", getUserApi.get("id"), "operationId should be method name");
+    }
+
+    // --- Item 2: OpenAPI operationId ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiOperationIdMeaningful() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+
+        for (Object pathItemObj : paths.values()) {
+            Map<String, Object> pathItem = (Map<String, Object>) pathItemObj;
+            for (Object opObj : pathItem.values()) {
+                Map<String, Object> operation = (Map<String, Object>) opObj;
+                String operationId = (String) operation.get("operationId");
+                assertNotNull(operationId, "operationId should not be null in OpenAPI spec");
+                assertFalse(operationId.matches("[0-9a-f]{32}"),
+                        "OpenAPI operationId should not be MD5 hash. Got: " + operationId);
+            }
+        }
+    }
+
+    // --- Item 5: 에러 응답에 ApiError 스키마 자동 첨부 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiErrorResponseHasSchema() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+
+        // 사용자 상세 조회는 @error UserNotFoundException → 404 응답에 ApiError 스키마 첨부
+        boolean found404WithSchema = false;
+        for (Map.Entry<String, Object> pathEntry : paths.entrySet()) {
+            Map<String, Object> pathItem = (Map<String, Object>) pathEntry.getValue();
+            for (Object opObj : pathItem.values()) {
+                Map<String, Object> operation = (Map<String, Object>) opObj;
+                Map<String, Object> responses = (Map<String, Object>) operation.get("responses");
+                if (responses == null) continue;
+
+                Map<String, Object> resp404 = (Map<String, Object>) responses.get("404");
+                if (resp404 != null) {
+                    Map<String, Object> content = (Map<String, Object>) resp404.get("content");
+                    if (content != null) {
+                        Map<String, Object> jsonContent = (Map<String, Object>) content.get("application/json");
+                        if (jsonContent != null) {
+                            Map<String, Object> schema = (Map<String, Object>) jsonContent.get("schema");
+                            if (schema != null && schema.containsKey("$ref")) {
+                                assertTrue(((String) schema.get("$ref")).contains("ApiError"),
+                                        "404 response should reference ApiError schema");
+                                found404WithSchema = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(found404WithSchema, "should have at least one 404 response with ApiError schema");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiApiErrorSchemaExists() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        assertTrue(schemas.containsKey("ApiError"), "ApiError schema should exist in components");
+
+        Map<String, Object> apiErrorSchema = (Map<String, Object>) schemas.get("ApiError");
+        Map<String, Object> properties = (Map<String, Object>) apiErrorSchema.get("properties");
+        assertNotNull(properties);
+        assertTrue(properties.containsKey("code"), "ApiError should have code property");
+        assertTrue(properties.containsKey("message"), "ApiError should have message property");
+        assertTrue(properties.containsKey("status"), "ApiError should have status property");
+    }
+
+    // --- Item 6: LocalDateTime 인라인, Item 7: BigDecimal format ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiDateTimeInline() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        // LocalDateTime이 별도 스키마로 등록되지 않아야 함
+        assertFalse(schemas.containsKey("LocalDateTime"),
+                "LocalDateTime should NOT exist as a separate schema — it should be inlined");
+        assertFalse(schemas.containsKey("LocalDate"),
+                "LocalDate should NOT exist as a separate schema — it should be inlined");
+
+        // UserDto의 createdAt 필드 (BaseDto 상속)가 인라인 date-time으로 처리되어야 함
+        Map<String, Object> userSchema = (Map<String, Object>) schemas.get("UserDto");
+        if (userSchema != null) {
+            Map<String, Object> properties = (Map<String, Object>) userSchema.get("properties");
+            if (properties != null && properties.containsKey("createdAt")) {
+                Map<String, Object> createdAt = (Map<String, Object>) properties.get("createdAt");
+                // $ref가 아닌 인라인 string/date-time이어야 함
+                assertNull(createdAt.get("$ref"), "createdAt should not use $ref");
+                assertNull(createdAt.get("allOf"), "createdAt should not use allOf wrapper");
+            }
+        }
+    }
+
+    // --- Item 8: example 값 타입 기반 자동 생성 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiEnumSchemaHasExample() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        // enum 스키마에 example이 첫 번째 값으로 설정되어야 함
+        boolean foundEnumWithExample = false;
+        for (Map.Entry<String, Object> entry : schemas.entrySet()) {
+            Map<String, Object> schema = (Map<String, Object>) entry.getValue();
+            if (schema.containsKey("enum")) {
+                assertNotNull(schema.get("example"),
+                        "enum schema '" + entry.getKey() + "' should have example value");
+                List<String> enumValues = (List<String>) schema.get("enum");
+                assertEquals(enumValues.get(0), schema.get("example"),
+                        "enum example should be the first enum value");
+                foundEnumWithExample = true;
+            }
+        }
+        assertTrue(foundEnumWithExample, "should have at least one enum schema with example");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiFieldExampleValues() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        Map<String, Object> userSchema = (Map<String, Object>) schemas.get("UserDto");
+        assertNotNull(userSchema, "UserDto schema should exist");
+
+        Map<String, Object> properties = (Map<String, Object>) userSchema.get("properties");
+
+        // Long 타입 id 필드에 example 1이 있어야 함
+        if (properties.containsKey("id")) {
+            Map<String, Object> idProp = (Map<String, Object>) properties.get("id");
+            // id가 인라인 타입인 경우만 검증 (Object $ref인 경우 example 없음)
+            if (idProp.containsKey("type")) {
+                assertNotNull(idProp.get("example"), "Long field 'id' should have example value");
+            }
+        }
     }
 
     // --- helpers ---

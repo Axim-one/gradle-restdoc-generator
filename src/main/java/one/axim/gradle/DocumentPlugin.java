@@ -48,6 +48,12 @@ public class DocumentPlugin implements Plugin<Project> {
             }
         });
 
+        // @XApiIgnore 어노테이션 사용을 위해 플러그인 JAR을 implementation에 자동 추가
+        // (compileOnly는 런타임 클래스로더에 포함되지 않아 리플렉션으로 어노테이션 감지 불가)
+        project.getDependencies().add("implementation", project.files(
+                new File(getClass().getProtectionDomain().getCodeSource().getLocation().getPath())
+        ));
+
         Task javaCompile = project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME);
 
         Task restMetaGenerateTask = project.getTasks().create(RestMetaGeneratorTask.TASK_NAME, RestMetaGeneratorTask.class);

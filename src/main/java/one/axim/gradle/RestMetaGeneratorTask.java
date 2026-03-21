@@ -167,6 +167,31 @@ public class RestMetaGeneratorTask extends DefaultTask {
     @Input @Optional
     private String errorResponseClass = "";
 
+    /**
+     * 문서 생성에서 제외할 패키지 목록.
+     * 해당 패키지에 속하는 모든 컨트롤러가 제외됩니다.
+     *
+     * <pre>{@code
+     * excludePackages = ['com.example.internal', 'com.example.admin']
+     * }</pre>
+     *
+     * @since 2.1.1
+     */
+    @Input @Optional
+    private List<String> excludePackages = new ArrayList<>();
+
+    /**
+     * 문서 생성에서 제외할 컨트롤러 클래스 이름 목록 (simple name).
+     *
+     * <pre>{@code
+     * excludeClasses = ['HealthCheckController', 'InternalController']
+     * }</pre>
+     *
+     * @since 2.1.1
+     */
+    @Input @Optional
+    private List<String> excludeClasses = new ArrayList<>();
+
     @Nested
     private AuthDsl authConfig = new AuthDsl();
 
@@ -307,6 +332,22 @@ public class RestMetaGeneratorTask extends DefaultTask {
     @Internal
     public List<EnvironmentDsl> getEnvironmentConfigs() {
         return environmentConfigs;
+    }
+
+    public List<String> getExcludePackages() {
+        return excludePackages;
+    }
+
+    public void setExcludePackages(List<String> excludePackages) {
+        this.excludePackages = excludePackages;
+    }
+
+    public List<String> getExcludeClasses() {
+        return excludeClasses;
+    }
+
+    public void setExcludeClasses(List<String> excludeClasses) {
+        this.excludeClasses = excludeClasses;
     }
 
     // --- DSL 메서드 ---
@@ -543,6 +584,8 @@ public class RestMetaGeneratorTask extends DefaultTask {
         RestApiDocGenerator generator =
                 new RestApiDocGenerator(baseClassUtils, classUtils, docDir, basePackage);
         generator.setErrorGroups(errorGroups);
+        generator.setExcludePackages(this.excludePackages);
+        generator.setExcludeClasses(this.excludeClasses);
         generator.generate();
 
     }

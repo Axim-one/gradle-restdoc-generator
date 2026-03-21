@@ -38,6 +38,10 @@ The `restMetaGenerator` task accepts these DSL properties:
 - `serviceVersion` — API version prefix (default `v1.0`)
 - `introductionFile` — path to a markdown file whose content becomes the service introduction
 
+**Exclusion (v2.1.1+):**
+- `excludePackages` — list of package prefixes to exclude from doc generation
+- `excludeClasses` — list of controller simple names to exclude
+
 **Error code/response (two-tier resolution: DSL override → framework default):**
 - `errorCodeClass` — FQCN of the ErrorCode class to scan (default: `one.axim.framework.rest.exception.ErrorCode`)
 - `errorResponseClass` — FQCN of the error response DTO (default: `one.axim.framework.rest.model.ApiError`) *(v2.0.5+)*
@@ -88,6 +92,16 @@ Service metadata is configured directly in the `restMetaGenerator` Gradle DSL bl
 The plugin references `one.axim.framework` annotations and types via string-based checks at runtime (no compile-time dependency). These include:
 - `@XRestGroupName`, `@XPageNationDefault`, `@XQueryParams` — annotations
 - `XPage`, `XPageNation`, `XOrder` — data types (mirrored by `XPageSchema` for reflection)
+
+### API Exclusion (`@XApiIgnore`)
+
+`one.axim.gradle.annotation.XApiIgnore` annotation can be applied to:
+- **Controller class** — excludes all endpoints in the controller
+- **Individual method** — excludes only that endpoint
+
+The annotation is automatically added to the project's classpath when the plugin is applied (`DocumentPlugin` adds the plugin JAR as `implementation` dependency).
+
+DSL-based exclusion is also available via `excludePackages` and `excludeClasses` properties.
 
 ## Javadoc Comment Tags
 

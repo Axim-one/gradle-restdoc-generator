@@ -38,8 +38,16 @@ public class RestApiDocGenerator {
 
     private Map<String, ErrorGroupDefinition> errorGroupMap = Collections.emptyMap();
 
+    private static final String XAPI_IGNORE = "one.axim.gradle.annotation.XApiIgnore";
+
     /** operationId 중복 방지를 위한 사용된 ID 집합 */
     private Set<String> usedOperationIds = new HashSet<>();
+
+    /** DSL에서 설정된 제외 패키지 목록 */
+    private List<String> excludePackages = Collections.emptyList();
+
+    /** DSL에서 설정된 제외 클래스 이름 목록 (simple name) */
+    private List<String> excludeClasses = Collections.emptyList();
 
     private Map<Class<?>, Set<Method>> methodMap = new TreeMap<Class<?>, Set<Method>>(new Comparator<Class<?>>() {
         @Override
@@ -57,6 +65,14 @@ public class RestApiDocGenerator {
         this.basePaths = new HashSet<>();
 
         prepareClassesAndMethods();
+    }
+
+    public void setExcludePackages(List<String> excludePackages) {
+        this.excludePackages = excludePackages != null ? excludePackages : Collections.emptyList();
+    }
+
+    public void setExcludeClasses(List<String> excludeClasses) {
+        this.excludeClasses = excludeClasses != null ? excludeClasses : Collections.emptyList();
     }
 
     public void setErrorGroups(List<ErrorGroupDefinition> groups) {
@@ -137,8 +153,26 @@ public class RestApiDocGenerator {
 
                     if (isApiController) {
 
+                        // DSL excludePackages / excludeClasses 필터
+                        if (isExcludedClass(cls)) {
+                            System.out.println("[SKIP] Excluded controller: " + cls.getName());
+                            continue;
+                        }
+
+                        // @XApiIgnore 클래스 레벨 필터
+                        if (isHasAnnotation(cls.getDeclaredAnnotations(), XAPI_IGNORE)) {
+                            System.out.println("[SKIP] @XApiIgnore controller: " + cls.getName());
+                            continue;
+                        }
+
                         Method[] methods = cls.getDeclaredMethods();
                         for (Method method : methods) {
+
+                            // @XApiIgnore 메서드 레벨 필터
+                            if (isHasAnnotation(method.getDeclaredAnnotations(), XAPI_IGNORE)) {
+                                System.out.println("[SKIP] @XApiIgnore method: " + cls.getSimpleName() + "." + method.getName());
+                                continue;
+                            }
 
                             annotations = method.getDeclaredAnnotations();
 
@@ -1070,6 +1104,26 @@ public class RestApiDocGenerator {
 
 
         return null;
+    }
+
+    /**
+     * DSL excludePackages / excludeClasses 설정에 의해 제외 대상인지 확인한다.
+     */
+    private boolean isExcludedClass(Class<?> cls) {
+        String className = cls.getName();
+        String simpleName = cls.getSimpleName();
+
+        for (String pkg : excludePackages) {
+            if (className.startsWith(pkg)) {
+                return true;
+            }
+        }
+        for (String name : excludeClasses) {
+            if (simpleName.equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private APIParameter createQueryParameter(String name, String classPath, String type, String description, String defaultValue) {

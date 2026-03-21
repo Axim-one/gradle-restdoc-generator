@@ -6,6 +6,7 @@ import com.example.dto.UserDto;
 import com.example.dto.UserSearchRequest;
 import com.example.dto.UserStatus;
 import com.example.exception.AuthException;
+import one.axim.gradle.annotation.XApiIgnore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -125,5 +126,16 @@ public class SampleController {
     @GetMapping(name = "사용자 검색", value = "/search")
     public List<UserDto> searchUsers(UserSearchRequest search) {
         return null;
+    }
+
+    /**
+     * 디버그 엔드포인트 (문서에서 제외)
+     *
+     * @return 디버그 정보
+     */
+    @XApiIgnore
+    @GetMapping(name = "디버그", value = "/debug")
+    public String debug() {
+        return "debug";
     }
 }

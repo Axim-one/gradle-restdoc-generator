@@ -1072,6 +1072,37 @@ public class RestMetaGeneratorIntegrationTest {
         }
     }
 
+    // --- @XApiIgnore 어노테이션 기반 제외 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testXApiIgnoreClassExcludesEntireController() throws Exception {
+        // @XApiIgnore가 붙은 InternalController는 API JSON이 생성되지 않아야 함
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File internalJson = findFile(apiDir, "InternalController");
+        assertNull(internalJson, "InternalController should be excluded by @XApiIgnore on class");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testXApiIgnoreMethodExcludesEndpoint() throws Exception {
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        // @XApiIgnore가 붙은 debug 메서드는 제외되어야 함
+        Map<String, Object> debugApi = findApiByName(apis, "디버그");
+        assertNull(debugApi, "debug method should be excluded by @XApiIgnore on method");
+
+        // 다른 메서드들은 정상 존재
+        Map<String, Object> getUserApi = findApiByName(apis, "사용자 상세 조회");
+        assertNotNull(getUserApi, "non-ignored methods should still be included");
+    }
+
     // --- helpers ---
 
     @SuppressWarnings("unchecked")

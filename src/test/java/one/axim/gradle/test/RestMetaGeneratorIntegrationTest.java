@@ -255,6 +255,7 @@ public class RestMetaGeneratorIntegrationTest {
         assertTrue(apiNames.contains("사용자 목록 조회 래핑"), "사용자 목록 조회 래핑 should be processed");
         assertTrue(apiNames.contains("사용자 페이징 조회 래핑"), "사용자 페이징 조회 래핑 should be processed");
         assertTrue(apiNames.contains("사용자 검색"), "사용자 검색 should be processed");
+        assertTrue(apiNames.contains("파트너 조회"), "파트너 조회 should be processed");
     }
 
     @Test
@@ -545,7 +546,7 @@ public class RestMetaGeneratorIntegrationTest {
         // apis
         List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
         assertNotNull(apis, "apis should not be null");
-        assertTrue(apis.size() >= 9, "should have at least 9 APIs, got: " + apis.size());
+        assertTrue(apis.size() >= 10, "should have at least 10 APIs, got: " + apis.size());
 
         // models
         Map<String, Object> models = (Map<String, Object>) bundle.get("models");
@@ -1070,6 +1071,50 @@ public class RestMetaGeneratorIntegrationTest {
                 assertNotNull(idProp.get("example"), "Long field 'id' should have example value");
             }
         }
+    }
+
+    // --- 외부 패키지 참조 모델 생성 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testExternalPackageModelGenerated() throws Exception {
+        // basePackage('com.example') 밖의 com.external.entity.PartnerEntity가
+        // 반환 타입으로 참조되면 model JSON이 생성되어야 함
+        Path modelDir = tempDir.resolve("build/docs/model");
+        File partnerModel = findFile(modelDir, "PartnerEntity");
+        assertNotNull(partnerModel,
+                "PartnerEntity model should be generated even though it's outside basePackage");
+
+        String json = Files.readString(partnerModel.toPath());
+        Map<String, Object> model = gson.fromJson(json, Map.class);
+        assertEquals("Object", model.get("type"));
+
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) model.get("fields");
+        List<String> fieldNames = fields.stream()
+                .map(f -> (String) f.get("name")).toList();
+        assertTrue(fieldNames.contains("id"), "should contain id field");
+        assertTrue(fieldNames.contains("name"), "should contain name field");
+        assertTrue(fieldNames.contains("email"), "should contain email field");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiExternalSchemaNotMissing() throws Exception {
+        // OpenAPI spec에서 PartnerEntity schema가 $ref로 참조되고,
+        // components/schemas에도 존재해야 함 (broken $ref 방지)
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        assertTrue(schemas.containsKey("PartnerEntity"),
+                "PartnerEntity schema should exist in components/schemas (not broken $ref)");
+
+        Map<String, Object> partnerSchema = (Map<String, Object>) schemas.get("PartnerEntity");
+        assertEquals("object", partnerSchema.get("type"));
+        Map<String, Object> properties = (Map<String, Object>) partnerSchema.get("properties");
+        assertNotNull(properties);
+        assertTrue(properties.containsKey("id"), "should have id property");
+        assertTrue(properties.containsKey("name"), "should have name property");
     }
 
     // --- @XApiIgnore 어노테이션 기반 제외 ---

@@ -752,21 +752,9 @@ public class RestApiDocGenerator {
                 return;
             }
 
-            boolean enableCls = false;
-
-            if (basePaths != null && !basePaths.isEmpty()) {
-                for (String basePath : basePaths) {
-                    if (s.startsWith(basePath)) {
-                        enableCls = true;
-                        break;
-                    }
-                    ;
-                }
-            } else {
-                enableCls = (s.startsWith(basePackage));
-            }
-
-            if (!enableCls) return;
+            // 참조 모델 생성: JDK/프레임워크 클래스만 제외, basePackage 필터 적용하지 않음
+            // (컨트롤러 스캔은 basePackage로 제한하지만, 참조된 DTO/Entity는 패키지 무관하게 생성)
+            if (isFrameworkOrLibraryClass(s)) return;
 
             try {
                 cls = loadClassWithFallback(this.baseClassUtil.getClassLoader(), s);
@@ -1104,6 +1092,23 @@ public class RestApiDocGenerator {
 
 
         return null;
+    }
+
+    /**
+     * JDK, Spring, 프레임워크 등 모델 생성 대상이 아닌 라이브러리 클래스인지 확인한다.
+     * 참조 모델 생성 시 basePackage 필터 대신 사용하여, 외부 모듈의 Entity/DTO도
+     * 정상적으로 schema가 생성되도록 한다.
+     */
+    private boolean isFrameworkOrLibraryClass(String className) {
+        return className.startsWith("java.")
+                || className.startsWith("javax.")
+                || className.startsWith("jakarta.")
+                || className.startsWith("org.springframework.")
+                || className.startsWith("org.hibernate.")
+                || className.startsWith("com.fasterxml.")
+                || className.startsWith("com.google.")
+                || className.startsWith("org.apache.")
+                || className.startsWith("one.axim.framework.");
     }
 
     /**

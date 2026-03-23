@@ -36,7 +36,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.1'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.2'
     }
 }
 
@@ -63,7 +63,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.1.1'
+    id 'gradle-restdoc-generator' version '2.1.2'
 }
 ```
 
@@ -148,8 +148,8 @@ restMetaGenerator {
 | `errorResponseClass` | No | `""` | Error Response DTO FQCN (미지정 시 프레임워크 기본값) |
 | `postmanApiKey` | No | `""` | Postman API Key (비어있으면 Postman 동기화 스킵) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
-| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.1+) |
-| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.1+) |
+| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.2+) |
+| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.2+) |
 | `debug` | **Yes** | `false` | 디버그 로깅 활성화 |
 
 ### Auth DSL 프로퍼티 (v2.1.0+)
@@ -286,7 +286,7 @@ public UserStatus getUserStatus(@PathVariable Long id) throws AuthException { ..
 
 연결된 에러 그룹은 API JSON의 `errors` 필드와 `responseStatus`에 자동 반영됩니다.
 
-## API 제외 (v2.1.1+)
+## API 제외 (v2.1.2+)
 
 ### DSL 기반 제외
 
@@ -508,6 +508,10 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - Spring Boot (`@RestController`, `@RequestMapping` 등)
 
 ## Changelog
+
+### v2.1.2
+- `basePackage` 외부의 참조 클래스(Entity/DTO) 모델 생성 누락 수정 — 다른 모듈의 클래스를 반환해도 `$ref`가 깨지지 않음
+- 모델 생성 시 JDK/프레임워크 클래스만 제외하고, 사용자 클래스는 패키지 무관하게 schema 생성
 
 ### v2.1.1
 - `@XApiIgnore` 어노테이션 추가 — 컨트롤러 클래스 또는 메서드 단위로 문서 생성 제외

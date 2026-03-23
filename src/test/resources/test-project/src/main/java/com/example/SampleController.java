@@ -6,6 +6,7 @@ import com.example.dto.UserDto;
 import com.example.dto.UserSearchRequest;
 import com.example.dto.UserStatus;
 import com.example.exception.AuthException;
+import com.external.entity.PartnerEntity;
 import one.axim.gradle.annotation.XApiIgnore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -125,6 +126,18 @@ public class SampleController {
      */
     @GetMapping(name = "사용자 검색", value = "/search")
     public List<UserDto> searchUsers(UserSearchRequest search) {
+        return null;
+    }
+
+    /**
+     * 외부 모듈 Entity 반환 (basePackage 밖 클래스)
+     *
+     * @param id 파트너 ID
+     * @return 파트너 정보
+     * @group 파트너
+     */
+    @GetMapping(name = "파트너 조회", value = "/partner/{id}")
+    public PartnerEntity getPartner(@PathVariable("id") Long id) {
         return null;
     }
 

@@ -1073,6 +1073,45 @@ public class RestMetaGeneratorIntegrationTest {
         }
     }
 
+    // --- 쿼리 파라미터 enum 모델 생성 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testQueryParamEnumModelGenerated() throws Exception {
+        // UserSearchRequest의 status 필드(UserStatus enum)가
+        // 쿼리 파라미터 전개 시에도 enum 모델이 생성되어야 함
+        Path modelDir = tempDir.resolve("build/docs/model");
+        File enumModel = findFile(modelDir, "UserStatus");
+        assertNotNull(enumModel, "UserStatus enum model should be generated from query param expansion");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testOpenApiQueryParamEnumHasValues() throws Exception {
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+
+        // /search 엔드포인트의 status 파라미터에 enum 배열이 있어야 함
+        for (Map.Entry<String, Object> pathEntry : paths.entrySet()) {
+            if (!pathEntry.getKey().contains("search")) continue;
+            Map<String, Object> pathItem = (Map<String, Object>) pathEntry.getValue();
+            for (Object opObj : pathItem.values()) {
+                Map<String, Object> operation = (Map<String, Object>) opObj;
+                List<Map<String, Object>> parameters = (List<Map<String, Object>>) operation.get("parameters");
+                if (parameters == null) continue;
+                for (Map<String, Object> param : parameters) {
+                    if ("status".equals(param.get("name"))) {
+                        Map<String, Object> schema = (Map<String, Object>) param.get("schema");
+                        assertNotNull(schema.get("enum"),
+                                "status query param should have enum values from UserStatus");
+                        return;
+                    }
+                }
+            }
+        }
+        fail("Should have found status parameter in search endpoint");
+    }
+
     // --- 외부 패키지 참조 모델 생성 ---
 
     @Test

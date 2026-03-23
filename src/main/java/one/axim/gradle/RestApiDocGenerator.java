@@ -440,7 +440,7 @@ public class RestApiDocGenerator {
             } else if (isHasAnnotation(parameter.getAnnotations(), "one.axim.framework.rest.annotation.XQueryParams")) {
 
                 // Query Parameter Object
-                generateQueryParameterModel(parameter.getType(), parameterHashMap);
+                generateQueryParameterModel(parameter.getType(), parameterHashMap, referenceClassSet);
             }
             // RequestHeader 가 아닐경우
             else {
@@ -450,7 +450,7 @@ public class RestApiDocGenerator {
 
                 // @RequestParam 복합 객체: 개별 쿼리 파라미터로 전개
                 if (tempParameterType.equals("Object") && !isRequestBody && !isPathVariable) {
-                    generateQueryParameterModel(parameter.getType(), parameterHashMap);
+                    generateQueryParameterModel(parameter.getType(), parameterHashMap, referenceClassSet);
                 } else {
 
                     APIParameter apiParameter = new APIParameter();
@@ -845,7 +845,8 @@ public class RestApiDocGenerator {
                         && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotBlank")
                         && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotBlank")
                         && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotEmpty")
-                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty");
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty")
+                        && !hasSizeMinAnnotation(field.getAnnotations());
                 apiField.setOptional(isOptional);
 
                 // 상속 필드인 경우 부모 클래스의 소스에서 코멘트를 조회
@@ -976,15 +977,21 @@ public class RestApiDocGenerator {
     }
 
     private void generateQueryParameterModel(Class<?> clazz, Map<String, APIParameter> parameterMap) throws Exception {
+        generateQueryParameterModel(clazz, parameterMap, null);
+    }
+
+    private void generateQueryParameterModel(Class<?> clazz, Map<String, APIParameter> parameterMap, Set<String> referenceClassSet) throws Exception {
 
         Log.i("QUERY PARAM", clazz.getName() + " query parameter parse start ");
         File srcFile = this.baseClassUtil.getSourceFile(clazz);
-        // 위에서 찾은 소스파일 파싱
-        JavaSourceParser srcParser = JavaSourceParser.parse(srcFile);
+        // 소스파일이 없는 외부 모듈 클래스 대응
+        JavaSourceParser srcParser = srcFile != null ? JavaSourceParser.parse(srcFile) : null;
 
         // 파서 캐시: 상속 필드의 코멘트 조회를 위해
         Map<Class<?>, JavaSourceParser> parserCache = new HashMap<>();
-        parserCache.put(clazz, srcParser);
+        if (srcParser != null) {
+            parserCache.put(clazz, srcParser);
+        }
 
         List<Field> fields = getAllFields(clazz);
 
@@ -1032,11 +1039,17 @@ public class RestApiDocGenerator {
                         && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotBlank")
                         && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotBlank")
                         && !isHasAnnotation(field.getAnnotations(), "javax.validation.constraints.NotEmpty")
-                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty");
+                        && !isHasAnnotation(field.getAnnotations(), "jakarta.validation.constraints.NotEmpty")
+                        && !hasSizeMinAnnotation(field.getAnnotations());
 
             parameter.setIsOptional(isOptional);
             parameter.setParameterKind(APIParameterKind.REQUEST_PARAMETER);
             parameter.setName(field.getName());
+
+            // enum 필드는 모델 생성을 위해 referenceClassSet에 추가
+            if (field.getType().isEnum() && referenceClassSet != null) {
+                referenceClassSet.add(parameterType);
+            }
 
             parameterMap.put(parameter.getName(), parameter);
 
@@ -1092,6 +1105,25 @@ public class RestApiDocGenerator {
 
 
         return null;
+    }
+
+    /**
+     * @Size(min=1) 이상이면 required로 판단한다.
+     */
+    private boolean hasSizeMinAnnotation(Annotation[] annotations) {
+        if (annotations == null) return false;
+        for (Annotation annotation : annotations) {
+            String name = annotation.annotationType().getName();
+            if (name.equals("javax.validation.constraints.Size")
+                    || name.equals("jakarta.validation.constraints.Size")) {
+                Map<String, Object> attrs = AnnotationHelper.getAnnotationAttributes(annotation);
+                if (attrs != null && attrs.get("min") != null) {
+                    int min = ((Number) attrs.get("min")).intValue();
+                    return min >= 1;
+                }
+            }
+        }
+        return false;
     }
 
     /**

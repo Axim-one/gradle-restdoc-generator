@@ -36,7 +36,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.2'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.3'
     }
 }
 
@@ -63,7 +63,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.1.2'
+    id 'gradle-restdoc-generator' version '2.1.3'
 }
 ```
 
@@ -148,8 +148,8 @@ restMetaGenerator {
 | `errorResponseClass` | No | `""` | Error Response DTO FQCN (미지정 시 프레임워크 기본값) |
 | `postmanApiKey` | No | `""` | Postman API Key (비어있으면 Postman 동기화 스킵) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
-| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.2+) |
-| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.2+) |
+| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.3+) |
+| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.3+) |
 | `debug` | **Yes** | `false` | 디버그 로깅 활성화 |
 
 ### Auth DSL 프로퍼티 (v2.1.0+)
@@ -286,7 +286,7 @@ public UserStatus getUserStatus(@PathVariable Long id) throws AuthException { ..
 
 연결된 에러 그룹은 API JSON의 `errors` 필드와 `responseStatus`에 자동 반영됩니다.
 
-## API 제외 (v2.1.2+)
+## API 제외 (v2.1.3+)
 
 ### DSL 기반 제외
 
@@ -508,6 +508,11 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - Spring Boot (`@RestController`, `@RequestMapping` 등)
 
 ## Changelog
+
+### v2.1.3
+- 복합 쿼리 파라미터 DTO의 enum 필드 모델이 생성되지 않던 문제 수정 — 이제 enum 드롭다운이 정상 표시
+- `@Size(min=1)` 어노테이션 → required 필드 자동 감지 추가
+- 외부 모듈 클래스를 쿼리 파라미터 DTO로 사용 시 소스 파일 없어도 NPE 없이 정상 처리
 
 ### v2.1.2
 - `basePackage` 외부의 참조 클래스(Entity/DTO) 모델 생성 누락 수정 — 다른 모듈의 클래스를 반환해도 `$ref`가 깨지지 않음

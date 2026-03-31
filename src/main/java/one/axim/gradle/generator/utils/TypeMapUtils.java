@@ -31,7 +31,24 @@ public class TypeMapUtils {
     }
 
     public static boolean isNormalDataType(String type) {
-        return type.startsWith("java.math.") || type.startsWith("java.lang.") || (type.startsWith("java.util") && !type.startsWith("java.util.List") && !type.startsWith("java.util.ArrayList")) || type.indexOf(".") == -1 || type.indexOf("ResponseEntity") != -1;
+        return type.startsWith("java.math.") || type.startsWith("java.lang.")
+                || (type.startsWith("java.util") && !isCollectionType(type))
+                || type.indexOf(".") == -1 || type.indexOf("ResponseEntity") != -1;
+    }
+
+    /**
+     * List, Set, Collection 등 컬렉션 타입인지 확인한다.
+     * 이들은 OpenAPI에서 array로 매핑되어야 하므로 "normal data type"이 아니다.
+     */
+    public static boolean isCollectionType(String type) {
+        return type.startsWith("java.util.List")
+                || type.startsWith("java.util.ArrayList")
+                || type.startsWith("java.util.LinkedList")
+                || type.startsWith("java.util.Set")
+                || type.startsWith("java.util.HashSet")
+                || type.startsWith("java.util.LinkedHashSet")
+                || type.startsWith("java.util.TreeSet")
+                || type.startsWith("java.util.Collection");
     }
 
     public static String GetTypeByLanuage(String type, LanguageType languageType) {

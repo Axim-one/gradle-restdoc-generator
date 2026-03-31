@@ -546,7 +546,7 @@ public class RestMetaGeneratorIntegrationTest {
         // apis
         List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
         assertNotNull(apis, "apis should not be null");
-        assertTrue(apis.size() >= 10, "should have at least 10 APIs, got: " + apis.size());
+        assertTrue(apis.size() >= 11, "should have at least 11 APIs, got: " + apis.size());
 
         // models
         Map<String, Object> models = (Map<String, Object>) bundle.get("models");
@@ -1071,6 +1071,49 @@ public class RestMetaGeneratorIntegrationTest {
                 assertNotNull(idProp.get("example"), "Long field 'id' should have example value");
             }
         }
+    }
+
+    // --- Set<String> → array 처리 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSetFieldMappedAsArray() throws Exception {
+        // UserDto.permissions (Set<String>) → OpenAPI에서 array + items: string
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> components = (Map<String, Object>) spec.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        Map<String, Object> userSchema = (Map<String, Object>) schemas.get("UserDto");
+        assertNotNull(userSchema);
+        Map<String, Object> properties = (Map<String, Object>) userSchema.get("properties");
+        assertNotNull(properties);
+
+        Map<String, Object> permissionsProp = (Map<String, Object>) properties.get("permissions");
+        assertNotNull(permissionsProp, "permissions property should exist in UserDto");
+        assertEquals("array", permissionsProp.get("type"),
+                "Set<String> should be mapped as array, not string");
+
+        Map<String, Object> items = (Map<String, Object>) permissionsProp.get("items");
+        assertNotNull(items, "array should have items");
+        assertEquals("string", items.get("type"), "Set<String> items should be string type");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSetReturnTypeMappedAsArray() throws Exception {
+        // Set<String> 반환 타입 → isArrayReturn: true
+        Path apiDir = tempDir.resolve("build/docs/api");
+        File controllerJson = findFile(apiDir, "SampleController");
+        assertNotNull(controllerJson);
+
+        String json = Files.readString(controllerJson.toPath());
+        Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        List<Map<String, Object>> apis = gson.fromJson(json, listType);
+
+        Map<String, Object> api = findApiByName(apis, "사용자 권한 조회");
+        assertNotNull(api, "사용자 권한 조회 API should exist");
+        assertTrue((Boolean) api.get("isArrayReturn"),
+                "Set<String> return type should be detected as array return");
     }
 
     // --- 쿼리 파라미터 enum 모델 생성 ---

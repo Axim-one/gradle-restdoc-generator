@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 사용자 API 컨트롤러
@@ -126,6 +127,18 @@ public class SampleController {
      */
     @GetMapping(name = "사용자 검색", value = "/search")
     public List<UserDto> searchUsers(UserSearchRequest search) {
+        return null;
+    }
+
+    /**
+     * 사용자 권한 목록 조회 (Set 반환 타입)
+     *
+     * @param id 사용자 ID
+     * @return 권한 목록
+     * @group 사용자
+     */
+    @GetMapping(name = "사용자 권한 조회", value = "/{id}/permissions")
+    public Set<String> getUserPermissions(@PathVariable("id") Long id) {
         return null;
     }
 

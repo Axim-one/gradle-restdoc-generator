@@ -637,7 +637,7 @@ public class RestApiDocGenerator {
 
         if (method.getReturnType() instanceof Class) {
             Class<?> returnType = method.getReturnType();
-            if (returnType.getCanonicalName().startsWith("java.util.List") || returnType.getCanonicalName().startsWith("java.util.LinkedList") || returnType.getCanonicalName().startsWith("java.util.ArrayList") || returnType.getCanonicalName().indexOf("[]") > -1) {
+            if (TypeMapUtils.isCollectionType(returnType.getCanonicalName()) || returnType.getCanonicalName().indexOf("[]") > -1) {
                 apiDefinition.setArrayReturn(true);
                 if (method.getGenericReturnType() instanceof ParameterizedType) {
                     Type genericType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
@@ -667,9 +667,7 @@ public class RestApiDocGenerator {
                     Type rawType = pt.getRawType();
                     if (rawType instanceof Class) {
                         String rawName = ((Class<?>) rawType).getName();
-                        if (rawName.equals("java.util.List") ||
-                            rawName.equals("java.util.ArrayList") ||
-                            rawName.equals("java.util.LinkedList")) {
+                        if (TypeMapUtils.isCollectionType(rawName)) {
                             apiDefinition.setArrayReturn(true);
                             Type innerType = pt.getActualTypeArguments()[0];
                             if (!(innerType instanceof TypeVariable)) {
@@ -883,6 +881,22 @@ public class RestApiDocGenerator {
                     continue;
                 }
 
+                // Set/Collection 직접 감지 (인터페이스는 getSuperClasses에서 누락될 수 있음)
+                if (!isEnum && TypeMapUtils.isCollectionType(field.getType().getCanonicalName())) {
+                    apiField.setType("Array");
+                    Type genericType = field.getGenericType();
+                    if (genericType instanceof ParameterizedType) {
+                        Type itemType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
+                        String innerTypeName = extractInnerType(itemType.getTypeName());
+                        apiField.setClassPath(innerTypeName);
+                        if (!TypeMapUtils.isNormalDataType(innerTypeName)) {
+                            referenceClassSet.add(innerTypeName);
+                        }
+                    }
+                    apiFields.add(apiField);
+                    continue;
+                }
+
                 boolean isObject = false;
 
                 try {
@@ -924,7 +938,7 @@ public class RestApiDocGenerator {
                     if (fieldType instanceof TypeVariable) {
                         // 제네릭 타입 파라미터(T)인 경우 — erasure 타입은 이미 classPath에 설정됨
                         apiField.setType("Object");
-                    } else if (fieldType.getTypeName().startsWith("java.util.List") || fieldType.getTypeName().startsWith("java.util.LinkedList") || fieldType.getTypeName().startsWith("java.util.ArrayList")) {
+                    } else if (TypeMapUtils.isCollectionType(fieldType.getTypeName())) {
                         apiField.setType("Array");
 
                         if (fieldType instanceof ParameterizedType) {
@@ -1203,11 +1217,9 @@ public class RestApiDocGenerator {
             Type rawType = pt.getRawType();
             if (rawType instanceof Class) {
                 String rawName = ((Class<?>) rawType).getName();
-                // List 계열이면 여기서 멈춤 (배열 반환 처리를 위해)
-                if (rawName.equals("java.util.List") ||
-                    rawName.equals("java.util.ArrayList") ||
-                    rawName.equals("java.util.LinkedList")) {
-                    return type; // List<X> 그대로 반환
+                // 컬렉션 계열이면 여기서 멈춤 (배열 반환 처리를 위해)
+                if (TypeMapUtils.isCollectionType(rawName)) {
+                    return type; // Collection<X> 그대로 반환
                 }
                 // Page/XPage 계열이면 여기서 멈춤 (페이징 반환 처리를 위해)
                 if (rawName.equals(SPRING_PAGE) ||

@@ -36,7 +36,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.6'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.7'
     }
 }
 
@@ -63,7 +63,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.1.6'
+    id 'gradle-restdoc-generator' version '2.1.7'
 }
 ```
 
@@ -148,8 +148,8 @@ restMetaGenerator {
 | `errorResponseClass` | No | `""` | Error Response DTO FQCN (미지정 시 프레임워크 기본값) |
 | `postmanApiKey` | No | `""` | Postman API Key (비어있으면 Postman 동기화 스킵) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
-| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.6+) |
-| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.6+) |
+| `excludePackages` | No | `[]` | 문서 생성에서 제외할 패키지 목록 (v2.1.7+) |
+| `excludeClasses` | No | `[]` | 문서 생성에서 제외할 컨트롤러 클래스명 목록 (simple name, v2.1.7+) |
 | `debug` | **Yes** | `false` | 디버그 로깅 활성화 |
 
 ### Auth DSL 프로퍼티 (v2.1.0+)
@@ -286,7 +286,7 @@ public UserStatus getUserStatus(@PathVariable Long id) throws AuthException { ..
 
 연결된 에러 그룹은 API JSON의 `errors` 필드와 `responseStatus`에 자동 반영됩니다.
 
-## API 제외 (v2.1.6+)
+## API 제외 (v2.1.7+)
 
 ### DSL 기반 제외
 
@@ -508,6 +508,10 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - Spring Boot (`@RestController`, `@RequestMapping` 등)
 
 ## Changelog
+
+### v2.1.7
+- `List<String>`, `Set<Long>` 등 primitive 제네릭 컬렉션 반환 타입이 `$ref` 대신 인라인 타입으로 올바르게 매핑
+- 단일 primitive 반환 타입 (`String`, `Long` 등)도 `$ref` 대신 인라인 처리
 
 ### v2.1.6
 - `hearders` → `headers` 오타 수정 (APIDefinition 필드명, getter/setter, 전체 참조)

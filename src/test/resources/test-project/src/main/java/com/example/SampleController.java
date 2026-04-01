@@ -119,6 +119,18 @@ public class SampleController {
     }
 
     /**
+     * 사용자 태그 목록 조회 (List of String 반환)
+     *
+     * @param id 사용자 ID
+     * @return 태그 목록
+     * @group 사용자
+     */
+    @GetMapping(name = "사용자 태그 조회", value = "/{id}/tags")
+    public List<String> getUserTags(@PathVariable("id") Long id) {
+        return null;
+    }
+
+    /**
      * 사용자 검색 (복합 쿼리 파라미터)
      *
      * @param search 검색 조건

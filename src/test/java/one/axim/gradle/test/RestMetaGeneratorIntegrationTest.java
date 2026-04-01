@@ -1073,6 +1073,44 @@ public class RestMetaGeneratorIntegrationTest {
         }
     }
 
+    // --- List<String> 반환 타입 처리 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testListStringReturnIsArray() throws Exception {
+        // List<String> → OpenAPI에서 array + items: string (not $ref)
+        Map<String, Object> spec = readOpenApiJson();
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+
+        boolean found = false;
+        for (Map.Entry<String, Object> pathEntry : paths.entrySet()) {
+            if (!pathEntry.getKey().contains("tags")) continue;
+            Map<String, Object> pathItem = (Map<String, Object>) pathEntry.getValue();
+            for (Object opObj : pathItem.values()) {
+                Map<String, Object> operation = (Map<String, Object>) opObj;
+                Map<String, Object> responses = (Map<String, Object>) operation.get("responses");
+                for (Object respObj : responses.values()) {
+                    Map<String, Object> resp = (Map<String, Object>) respObj;
+                    Map<String, Object> content = (Map<String, Object>) resp.get("content");
+                    if (content == null) continue;
+                    Map<String, Object> json = (Map<String, Object>) content.get("application/json");
+                    if (json == null) continue;
+                    Map<String, Object> schema = (Map<String, Object>) json.get("schema");
+                    if (schema != null && "array".equals(schema.get("type"))) {
+                        Map<String, Object> items = (Map<String, Object>) schema.get("items");
+                        assertNotNull(items);
+                        assertEquals("string", items.get("type"),
+                                "List<String> items should be inline string, not $ref");
+                        assertNull(items.get("$ref"),
+                                "List<String> items should NOT use $ref");
+                        found = true;
+                    }
+                }
+            }
+        }
+        assertTrue(found, "should find List<String> array response for tags endpoint");
+    }
+
     // --- JSON Sample 자동 생성 ---
 
     @Test

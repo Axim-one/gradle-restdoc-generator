@@ -94,9 +94,12 @@ public class SampleGenerator {
             }
         }
 
-        // 원시 타입 반환
+        // 원시 타입 반환 (List<String>, Set<Long> 등 포함)
         Object primitiveValue = getTypeDefault(returnClass, 0);
         if (primitiveValue != null) {
+            if (api.isArrayReturn()) {
+                return toJsonString(Collections.singletonList(primitiveValue));
+            }
             return toJsonString(primitiveValue);
         }
 

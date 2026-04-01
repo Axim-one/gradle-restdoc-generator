@@ -359,11 +359,21 @@ public class OpenApiSpecConverter {
         } else if (api.isArrayReturn()) {
             Map<String, Object> arraySchema = new LinkedHashMap<>();
             arraySchema.put("type", "array");
-            Map<String, Object> items = new LinkedHashMap<>();
-            items.put("$ref", "#/components/schemas/" + schemaName);
+            Map<String, Object> items;
+            // primitive/known 타입은 인라인 매핑, 그 외는 $ref
+            if (isPrimitiveOrKnownType(returnClass)) {
+                items = mapOpenApiType(returnClass);
+            } else {
+                items = new LinkedHashMap<>();
+                items.put("$ref", "#/components/schemas/" + schemaName);
+            }
             arraySchema.put("items", items);
             return arraySchema;
         } else {
+            // 단일 반환: primitive 타입은 인라인 매핑
+            if (isPrimitiveOrKnownType(returnClass)) {
+                return mapOpenApiType(returnClass);
+            }
             Map<String, Object> ref = new LinkedHashMap<>();
             ref.put("$ref", "#/components/schemas/" + schemaName);
             return ref;
@@ -829,6 +839,21 @@ public class OpenApiSpecConverter {
 
         schema.put("properties", properties);
         return schema;
+    }
+
+    /**
+     * primitive, wrapper, 날짜, BigDecimal 등 model이 아닌 알려진 타입인지 확인한다.
+     * 이들은 $ref가 아닌 인라인 type/format으로 매핑해야 한다.
+     */
+    private boolean isPrimitiveOrKnownType(String classPath) {
+        if (classPath == null) return false;
+        return classPath.startsWith("java.lang.")
+                || classPath.startsWith("java.math.")
+                || classPath.startsWith("java.time.")
+                || classPath.equals("java.util.Date")
+                || classPath.equals("int") || classPath.equals("long")
+                || classPath.equals("float") || classPath.equals("double")
+                || classPath.equals("boolean") || classPath.equals("short");
     }
 
     /**

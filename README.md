@@ -515,6 +515,7 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 - 누락된 `java.lang.*` 타입 추가: `Short`, `Byte`, `Character`, `Number`
 - **static final 상수가 쿼리 파라미터로 노출되는 버그 수정** — `DEFAULT_SIZE`, `FORMAT` 등 상수 필드 제외
 - 모델 생성에서도 static 필드 스킵 (enum 상수 제외)
+- `java.time.*` 타입(`LocalDateTime` 등)을 normal 타입으로 분류 — 모델에서 `"type": "Object"` 대신 `"type": "LocalDateTime"`으로 출력
 
 ### v2.1.6
 - `hearders` → `headers` 오타 수정 (APIDefinition 필드명, getter/setter, 전체 참조)

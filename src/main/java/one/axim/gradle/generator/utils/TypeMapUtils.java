@@ -32,6 +32,7 @@ public class TypeMapUtils {
 
     public static boolean isNormalDataType(String type) {
         return type.startsWith("java.math.") || type.startsWith("java.lang.")
+                || type.startsWith("java.time.")
                 || (type.startsWith("java.util") && !isCollectionType(type))
                 || type.indexOf(".") == -1 || type.indexOf("ResponseEntity") != -1;
     }

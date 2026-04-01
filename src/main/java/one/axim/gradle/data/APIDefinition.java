@@ -61,7 +61,7 @@ public class APIDefinition {
     private List<APIParameter> parameters;
 
     /** List of custom headers specific to this endpoint. */
-    private List<APIHeader> hearders;
+    private List<APIHeader> headers;
 
     /** Fully qualified class name of the return type (unwrapped from generics like {@code ApiResult<T>}). */
     private String returnClass;
@@ -158,14 +158,14 @@ public class APIDefinition {
         this.parameters = parameters;
     }
 
-    public List<APIHeader> getHearders() {
+    public List<APIHeader> getHeaders() {
 
-        return hearders;
+        return headers;
     }
 
-    public void setHearders(List<APIHeader> hearders) {
+    public void setHeaders(List<APIHeader> headers) {
 
-        this.hearders = hearders;
+        this.headers = headers;
     }
 
     public String getReturnClass() {

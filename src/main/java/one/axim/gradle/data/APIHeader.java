@@ -14,6 +14,9 @@ public class APIHeader {
 
     private String defaultValue;
 
+    /** 공통 인증 헤더 여부 (true: 전역 인증, false: API 고유 헤더) */
+    private boolean isGlobal = false;
+
     public String getName() {
 
         return name;
@@ -72,6 +75,14 @@ public class APIHeader {
     public void setDefaultValue(String defaultValue) {
 
         this.defaultValue = defaultValue;
+    }
+
+    public boolean getIsGlobal() {
+        return isGlobal;
+    }
+
+    public void setIsGlobal(boolean global) {
+        isGlobal = global;
     }
 
 }

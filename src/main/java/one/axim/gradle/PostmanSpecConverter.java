@@ -732,7 +732,7 @@ public class PostmanSpecConverter {
 
     private ArrayList<HeaderData> getHeaders(APIDefinition apiDefinition) {
 
-        List<APIHeader> apiHeaders = apiDefinition.getHearders();
+        List<APIHeader> apiHeaders = apiDefinition.getHeaders();
         ArrayList<HeaderData> headers = new ArrayList<>();
         if (apiHeaders != null && !apiHeaders.isEmpty()) {
 

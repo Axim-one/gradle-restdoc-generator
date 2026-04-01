@@ -218,8 +218,8 @@ public class OpenApiSpecConverter {
         }
 
         // Per-API headers
-        if (api.getHearders() != null) {
-            for (APIHeader header : api.getHearders()) {
+        if (api.getHeaders() != null) {
+            for (APIHeader header : api.getHeaders()) {
                 Map<String, Object> headerParam = new LinkedHashMap<>();
                 headerParam.put("name", header.getName());
                 headerParam.put("in", "header");

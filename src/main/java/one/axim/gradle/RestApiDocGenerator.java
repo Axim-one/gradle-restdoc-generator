@@ -612,7 +612,13 @@ public class RestApiDocGenerator {
         apiDefinition.setClassName(className);
         apiDefinition.setMethod(methodName);
         apiDefinition.setParameters(new ArrayList<>(parameterHashMap.values()));
-        apiDefinition.setHearders(new ArrayList<>(headerHashMap.values()));
+
+        // 헤더: isGlobal 판별 (Access-Token, Authorization → 전역 인증 헤더)
+        List<APIHeader> headerList = new ArrayList<>(headerHashMap.values());
+        for (APIHeader h : headerList) {
+            h.setIsGlobal(isGlobalAuthHeader(h.getName()));
+        }
+        apiDefinition.setHeaders(headerList);
         apiDefinition.setUrlMapping(urlMapping);
         apiDefinition.setNeedsSession(isAuth);
         apiDefinition.setGroupId(groupId);
@@ -1119,6 +1125,17 @@ public class RestApiDocGenerator {
 
 
         return null;
+    }
+
+    private static final Set<String> GLOBAL_AUTH_HEADERS = new HashSet<>(Arrays.asList(
+            "Access-Token", "Authorization", "access-token", "authorization"
+    ));
+
+    /**
+     * 전역 인증 헤더인지 확인한다 (Access-Token, Authorization 등).
+     */
+    private boolean isGlobalAuthHeader(String headerName) {
+        return headerName != null && GLOBAL_AUTH_HEADERS.contains(headerName);
     }
 
     /**

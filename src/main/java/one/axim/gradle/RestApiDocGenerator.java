@@ -840,6 +840,10 @@ public class RestApiDocGenerator {
 
                 if (field.isAnnotationPresent(JsonIgnore.class)) continue;
 
+                // static 필드는 모델의 인스턴스 필드가 아니므로 스킵 (enum 상수 제외)
+                if (!isEnum && java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+                if (field.isSynthetic()) continue;
+
                 if (isEnum) {
                     if (field.getName().equals("name") || field.getName().equals("ordinal") || field.getName().startsWith("$")) {
                         continue;
@@ -1022,6 +1026,10 @@ public class RestApiDocGenerator {
         List<Field> fields = getAllFields(clazz);
 
         for (Field field : fields) {
+
+            // static/synthetic 필드는 인스턴스 파라미터가 아니므로 스킵
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+            if (field.isSynthetic()) continue;
 
             String parameterType = field.getType().getCanonicalName();
             String tempParameterType;

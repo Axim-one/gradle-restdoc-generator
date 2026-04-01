@@ -292,9 +292,18 @@ public class SampleGenerator {
             case "java.lang.Integer":
             case "int":
                 return 1;
+            case "java.lang.Short":
+            case "short":
+            case "java.lang.Byte":
+            case "byte":
+                return 1;
+            case "java.lang.Character":
+            case "char":
+                return "A";
             case "java.lang.Boolean":
             case "boolean":
                 return true;
+            case "java.lang.Number":
             case "java.lang.Double":
             case "double":
             case "java.lang.Float":

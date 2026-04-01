@@ -748,10 +748,31 @@ public class OpenApiSpecConverter {
                 schema.put("type", "number");
                 schema.put("format", "double");
                 break;
+            case "short":
+            case "Short":
+            case "java.lang.Short":
+                schema.put("type", "integer");
+                schema.put("format", "int32");
+                break;
+            case "byte":
+            case "Byte":
+            case "java.lang.Byte":
+                schema.put("type", "integer");
+                schema.put("format", "int32");
+                break;
+            case "char":
+            case "Character":
+            case "java.lang.Character":
+                schema.put("type", "string");
+                break;
             case "boolean":
             case "Boolean":
             case "java.lang.Boolean":
                 schema.put("type", "boolean");
+                break;
+            case "Number":
+            case "java.lang.Number":
+                schema.put("type", "number");
                 break;
             case "BigDecimal":
             case "java.math.BigDecimal":
@@ -853,7 +874,8 @@ public class OpenApiSpecConverter {
                 || classPath.equals("java.util.Date")
                 || classPath.equals("int") || classPath.equals("long")
                 || classPath.equals("float") || classPath.equals("double")
-                || classPath.equals("boolean") || classPath.equals("short");
+                || classPath.equals("boolean") || classPath.equals("short")
+                || classPath.equals("byte") || classPath.equals("char");
     }
 
     /**
@@ -888,10 +910,27 @@ public class OpenApiSpecConverter {
             case "java.lang.Long":
                 schema.put("example", 1);
                 break;
+            case "short":
+            case "Short":
+            case "java.lang.Short":
+            case "byte":
+            case "Byte":
+            case "java.lang.Byte":
+                schema.put("example", 1);
+                break;
+            case "char":
+            case "Character":
+            case "java.lang.Character":
+                schema.put("example", "A");
+                break;
             case "boolean":
             case "Boolean":
             case "java.lang.Boolean":
                 schema.put("example", true);
+                break;
+            case "Number":
+            case "java.lang.Number":
+                schema.put("example", 0);
                 break;
             case "float":
             case "Float":

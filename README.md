@@ -512,6 +512,9 @@ get-library-docs("/axim-one/gradle-restdoc-generator", topic="error code")
 ### v2.1.7
 - `List<String>`, `Set<Long>` 등 primitive 제네릭 컬렉션 반환 타입이 `$ref` 대신 인라인 타입으로 올바르게 매핑
 - 단일 primitive 반환 타입 (`String`, `Long` 등)도 `$ref` 대신 인라인 처리
+- 누락된 `java.lang.*` 타입 추가: `Short`, `Byte`, `Character`, `Number`
+- **static final 상수가 쿼리 파라미터로 노출되는 버그 수정** — `DEFAULT_SIZE`, `FORMAT` 등 상수 필드 제외
+- 모델 생성에서도 static 필드 스킵 (enum 상수 제외)
 
 ### v2.1.6
 - `hearders` → `headers` 오타 수정 (APIDefinition 필드명, getter/setter, 전체 참조)

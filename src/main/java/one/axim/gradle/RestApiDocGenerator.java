@@ -340,6 +340,12 @@ public class RestApiDocGenerator {
 
             Log.i("API", "Parameter : " + parameterName + " annotation : " + parameter.getAnnotatedType());
 
+            // @XApiIgnore가 붙은 파라미터 타입은 전개하지 않고 스킵 (세션 DTO 등)
+            if (isHasAnnotation(parameter.getType().getDeclaredAnnotations(), XAPI_IGNORE)) {
+                System.out.println("[SKIP] @XApiIgnore parameter type: " + parameterType);
+                continue;
+            }
+
             // Spring Pageable 파라미터 감지
             if (parameterType.equals(SPRING_PAGEABLE)) {
                 parameterHashMap.put("page", createQueryParameter("page", "java.lang.Integer", "int", "Page number (0-based)", "0"));

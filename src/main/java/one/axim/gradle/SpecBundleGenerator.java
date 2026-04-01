@@ -48,17 +48,32 @@ public class SpecBundleGenerator {
 
     private final String documentPath;
     private final ServiceDefinition serviceDefinition;
+    private final ClassLoader classLoader;
 
     public SpecBundleGenerator(ServiceDefinition serviceDefinition, String docPath) {
+        this(serviceDefinition, docPath, null);
+    }
+
+    public SpecBundleGenerator(ServiceDefinition serviceDefinition, String docPath, ClassLoader classLoader) {
         this.serviceDefinition = serviceDefinition;
         this.documentPath = docPath;
+        this.classLoader = classLoader;
     }
 
     public void build() throws IOException {
+        List<APIDefinition> apis = loadAllApis();
+        Map<String, APIModelDefinition> models = loadAllModels();
+
+        // JSON Sample 자동 생성
+        SampleGenerator sampleGenerator = new SampleGenerator(models, classLoader);
+        for (APIDefinition api : apis) {
+            sampleGenerator.generateSamples(api);
+        }
+
         Map<String, Object> bundle = new LinkedHashMap<>();
         bundle.put("service", buildServiceMap());
-        bundle.put("apis", loadAllApis());
-        bundle.put("models", loadAllModels());
+        bundle.put("apis", apis);
+        bundle.put("models", models);
         bundle.put("errors", loadErrors());
 
         Object errorResponse = loadErrorResponse();

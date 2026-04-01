@@ -106,6 +106,12 @@ public class APIDefinition {
      */
     private List<ErrorGroupDefinition> errors;
 
+    /** Request Body JSON 예시. GET이나 body 없는 API는 {@code null}. */
+    private String requestSample;
+
+    /** Response JSON 예시. void 반환이면 {@code null}. */
+    private String responseSample;
+
     public APIDefinition() {
         responseStatus = new HashMap<>();
         responseStatus.put("200", "성공");
@@ -292,5 +298,21 @@ public class APIDefinition {
 
     public void setErrors(List<ErrorGroupDefinition> errors) {
         this.errors = errors;
+    }
+
+    public String getRequestSample() {
+        return requestSample;
+    }
+
+    public void setRequestSample(String requestSample) {
+        this.requestSample = requestSample;
+    }
+
+    public String getResponseSample() {
+        return responseSample;
+    }
+
+    public void setResponseSample(String responseSample) {
+        this.responseSample = responseSample;
     }
 }

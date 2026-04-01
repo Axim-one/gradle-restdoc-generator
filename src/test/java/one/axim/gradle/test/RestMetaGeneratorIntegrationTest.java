@@ -546,7 +546,7 @@ public class RestMetaGeneratorIntegrationTest {
         // apis
         List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
         assertNotNull(apis, "apis should not be null");
-        assertTrue(apis.size() >= 11, "should have at least 11 APIs, got: " + apis.size());
+        assertTrue(apis.size() >= 12, "should have at least 12 APIs, got: " + apis.size());
 
         // models
         Map<String, Object> models = (Map<String, Object>) bundle.get("models");
@@ -1071,6 +1071,68 @@ public class RestMetaGeneratorIntegrationTest {
                 assertNotNull(idProp.get("example"), "Long field 'id' should have example value");
             }
         }
+    }
+
+    // --- JSON Sample 자동 생성 ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleContainsResponseSample() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+        List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
+
+        // 사용자 목록 조회 (List<UserDto>) → responseSample이 배열 형태
+        Map<String, Object> listApi = findApiByName(apis, "사용자 목록 조회");
+        assertNotNull(listApi);
+        String responseSample = (String) listApi.get("responseSample");
+        assertNotNull(responseSample, "List return should have responseSample");
+        assertTrue(responseSample.trim().startsWith("["), "List return responseSample should be array");
+        assertTrue(responseSample.contains("name"), "responseSample should contain model fields");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleContainsRequestSample() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+        List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
+
+        // POST 사용자 생성 → requestSample 존재
+        Map<String, Object> createApi = findApiByName(apis, "사용자 생성");
+        assertNotNull(createApi, "사용자 생성 API should exist");
+        String requestSample = (String) createApi.get("requestSample");
+        assertNotNull(requestSample, "POST API should have requestSample");
+        assertTrue(requestSample.contains("name"), "requestSample should contain model fields");
+
+        // responseSample도 존재
+        String responseSample = (String) createApi.get("responseSample");
+        assertNotNull(responseSample, "POST API should have responseSample");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundleGetApiNoRequestSample() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+        List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
+
+        // GET 사용자 목록 조회 → requestSample은 null
+        Map<String, Object> getApi = findApiByName(apis, "사용자 목록 조회");
+        assertNotNull(getApi);
+        assertNull(getApi.get("requestSample"), "GET API should not have requestSample");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSpecBundlePagingResponseSample() throws Exception {
+        Map<String, Object> bundle = readSpecBundle();
+        List<Map<String, Object>> apis = (List<Map<String, Object>>) bundle.get("apis");
+
+        // 사용자 페이징 조회 → SpringPage 래퍼로 감싸진 responseSample
+        Map<String, Object> pagedApi = findApiByName(apis, "사용자 페이징 조회");
+        assertNotNull(pagedApi);
+        String responseSample = (String) pagedApi.get("responseSample");
+        assertNotNull(responseSample, "Paging API should have responseSample");
+        assertTrue(responseSample.contains("content"), "Spring Page responseSample should contain 'content'");
+        assertTrue(responseSample.contains("totalElements"), "Spring Page responseSample should contain 'totalElements'");
     }
 
     // --- Set<String> → array 처리 ---

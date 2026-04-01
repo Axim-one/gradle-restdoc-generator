@@ -131,6 +131,18 @@ public class SampleController {
     }
 
     /**
+     * 사용자 생성
+     *
+     * @param user 사용자 정보
+     * @return 생성된 사용자
+     * @group 사용자
+     */
+    @PostMapping(name = "사용자 생성", value = "")
+    public UserDto createUser(@RequestBody UserDto user) {
+        return null;
+    }
+
+    /**
      * 사용자 권한 목록 조회 (Set 반환 타입)
      *
      * @param id 사용자 ID

@@ -480,9 +480,9 @@ public class RestMetaGeneratorTask extends DefaultTask {
             openApiConverter.build();
             Log.i(TAG, "OpenAPI spec generation end");
 
-            // Spec Bundle JSON 생성
+            // Spec Bundle JSON 생성 (ClassLoader 전달하여 @XSample 리플렉션 지원)
             Log.i(TAG, "Spec bundle generation start");
-            SpecBundleGenerator bundleGenerator = new SpecBundleGenerator(serviceDefinition, docDir.getPath());
+            SpecBundleGenerator bundleGenerator = new SpecBundleGenerator(serviceDefinition, docDir.getPath(), baseClassUtils.getAllClassLoader());
             bundleGenerator.build();
             Log.i(TAG, "Spec bundle generation end");
 

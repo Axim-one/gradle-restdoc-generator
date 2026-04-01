@@ -1,13 +1,13 @@
 ---
 name: axim-restdoc-generator
-description: Auto-generate REST API documentation from Spring Boot controllers using the Axim Gradle RestDoc Generator plugin. Use when configuring restMetaGenerator DSL, writing Javadoc tags (@response, @group, @auth, @error, @header), generating OpenAPI 3.0.3 specs, spec-bundle.json, error code scanning, Postman sync, or troubleshooting the gradle-restdoc-generator plugin.
+description: Auto-generate REST API documentation from Spring Boot controllers using the Axim Gradle RestDoc Generator plugin. Use when configuring restMetaGenerator DSL, writing Javadoc tags (@response, @group, @auth, @error, @header), generating OpenAPI 3.0.3 specs, spec-bundle.json, error code scanning, Postman sync, @XApiIgnore exclusion, or troubleshooting the gradle-restdoc-generator plugin.
 ---
 
 # Axim Gradle RestDoc Generator
 
 A Gradle plugin that auto-generates REST API documentation by scanning Spring Boot `@RestController` classes and their Javadoc comments.
 
-**Version:** 2.0.7
+**Version:** 2.1.4
 **Requirements:** Java 17+, Gradle 7.0+, Spring Boot
 **Repository:** https://github.com/Axim-one/gradle-restdoc-generator
 
@@ -21,7 +21,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.0.7'
+        classpath 'com.github.Axim-one:gradle-restdoc-generator:2.1.4'
     }
 }
 
@@ -48,7 +48,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'gradle-restdoc-generator' version '2.0.6'
+    id 'gradle-restdoc-generator' version '2.1.4'
 }
 ```
 
@@ -69,14 +69,18 @@ restMetaGenerator {
 
     // Error code / response class (optional)
     errorCodeClass = 'com.example.exception.ErrorCode'
-    errorResponseClass = 'com.example.dto.ApiErrorResponse'    // v2.0.5+
+    errorResponseClass = 'com.example.dto.ApiErrorResponse'
 
-    // Authentication — apiKey (optional, type='token' also works)
+    // Exclusion (v2.1.1+)
+    excludePackages = ['com.example.internal']
+    excludeClasses = ['HealthCheckController']
+
+    // Authentication — API Key
     auth {
-        type = 'apiKey'           // or 'token' (backward-compatible alias)
+        type = 'apiKey'              // or 'token' (backward compat alias)
         headerKey = 'Access-Token'
         value = '{{accessToken}}'
-        in = 'header'             // 'header' (default), 'query', 'cookie'
+        in = 'header'                // 'header', 'query', 'cookie'
         descriptionFile = 'docs/auth.md'
     }
 
@@ -84,9 +88,8 @@ restMetaGenerator {
     // auth {
     //     type = 'http'
     //     scheme = 'bearer'
-    //     bearerFormat = 'JWT'    // optional
+    //     bearerFormat = 'JWT'
     //     value = '{{accessToken}}'
-    //     descriptionFile = 'docs/auth.md'
     // }
 
     // Authentication — Basic (v2.0.7+)
@@ -94,7 +97,6 @@ restMetaGenerator {
     //     type = 'http'
     //     scheme = 'basic'
     //     value = '{{username}}:{{password}}'
-    //     descriptionFile = 'docs/auth.md'
     // }
 
     // Common headers (optional)
@@ -104,10 +106,6 @@ restMetaGenerator {
     environment('DEV') {
         variable('base_url', 'https://dev.api.example.com')
         variable('token', 'dev-token')
-    }
-    environment('PROD') {
-        variable('base_url', 'https://api.example.com')
-        variable('token', '')
     }
 
     // Postman sync (optional)
@@ -130,22 +128,44 @@ restMetaGenerator {
 | `serviceVersion` | No | `"v1.0"` | API version (OpenAPI version) |
 | `introductionFile` | No | `""` | Markdown file path for service description |
 | `errorCodeClass` | No | `""` | ErrorCode class FQCN (fallback: framework default) |
-| `errorResponseClass` | No | `""` | Error Response DTO FQCN (v2.0.5+, fallback: ApiError) |
+| `errorResponseClass` | No | `""` | Error Response DTO FQCN (fallback: ApiError) |
+| `excludePackages` | No | `[]` | Package prefixes to exclude from doc generation (v2.1.1+) |
+| `excludeClasses` | No | `[]` | Controller simple names to exclude (v2.1.1+) |
 | `postmanApiKey` | No | `""` | Postman API Key (empty = skip sync) |
 | `postmanWorkSpaceId` | No | `""` | Postman Workspace ID |
 | `debug` | **Yes** | `false` | Enable debug logging |
 
-### Auth DSL Properties (v2.0.7+)
+## API Exclusion (v2.1.1+)
 
-| Property | Default | Description |
-|----------|---------|-------------|
-| `type` | `""` | Auth type: `"token"`/`"apiKey"` (API key) or `"http"` (Bearer/Basic) |
-| `headerKey` | `""` | Header/parameter name (apiKey type only) |
-| `value` | `""` | Auth value (token, `"user:pass"` for basic) |
-| `descriptionFile` | `""` | Markdown file path for auth description |
-| `in` | `"header"` | apiKey location: `"header"`, `"query"`, `"cookie"` |
-| `scheme` | `""` | HTTP auth scheme: `"bearer"`, `"basic"` (http type only) |
-| `bearerFormat` | `""` | Token format hint, e.g. `"JWT"` (bearer only) |
+### @XApiIgnore Annotation
+
+Exclude controllers or individual methods from documentation:
+
+```java
+// Exclude entire controller
+@XApiIgnore
+@RestController
+public class InternalController { ... }
+
+// Exclude single method
+@RestController
+public class UserController {
+    @XApiIgnore
+    @GetMapping("/debug")
+    public String debug() { ... }
+}
+```
+
+The annotation is auto-added to project classpath when the plugin is applied. No extra dependency needed.
+
+### DSL-based Exclusion
+
+```groovy
+restMetaGenerator {
+    excludePackages = ['com.example.internal', 'com.example.admin']
+    excludeClasses = ['HealthCheckController', 'ActuatorController']
+}
+```
 
 ## Javadoc Tags
 
@@ -184,6 +204,37 @@ public UserDto getUser(@PathVariable Long userId) { ... }
 
 NOTE: Method signature `throws` clauses are also auto-detected and linked to error groups (no Javadoc tag needed).
 
+## Query Parameter Object (v2.1.0+)
+
+Complex objects bound as query parameters are auto-expanded into individual parameters:
+
+```java
+public class UserSearchRequest {
+    private String name;
+    @NotNull
+    private UserStatus status;    // enum → dropdown with values
+    private Long networkId;
+    private boolean active;       // primitive → required
+}
+
+@GetMapping(name = "사용자 검색", value = "/search")
+public List<UserDto> searchUsers(UserSearchRequest search) { ... }
+```
+
+No `@XQueryParams` annotation needed — any Object-typed parameter without `@RequestBody`/`@PathVariable` is auto-expanded.
+
+## OpenAPI 3.0 Features (v2.1.0+)
+
+- **operationId**: Controller method name (e.g., `getUser`, `searchUsers`) instead of MD5 hash
+- **enum values**: Auto-extracted `"enum": ["ACTIVE", "SUSPENDED", ...]` arrays with example
+- **required fields**: `@NotNull`, `@NotBlank`, `@NotEmpty`, `@Size(min=1)`, primitive types
+- **ApiError schema**: Auto-attached to 4xx/5xx responses with `$ref`
+- **Date/time inline**: `LocalDateTime` → `date-time`, `LocalDate` → `date`, `LocalTime` → `time`
+- **BigDecimal format**: `"format": "decimal"`
+- **Example values**: Type-based defaults (Long→1, Boolean→true, Enum→first value, BigDecimal→"100.00")
+- **Set/Collection**: `Set<T>`, `Collection<T>` → `array` + `items` (not string)
+- **External models**: Classes outside `basePackage` (e.g., common module entities) are generated
+
 ## Error Code Documentation
 
 Exception classes with `public static final ErrorCode` fields are auto-scanned:
@@ -192,35 +243,7 @@ Exception classes with `public static final ErrorCode` fields are auto-scanned:
 public class UserNotFoundException extends RuntimeException {
     public static final ErrorCode USER_NOT_FOUND =
         new ErrorCode("USER_001", "error.user.notfound");
-    public static final ErrorCode USER_DELETED =
-        new ErrorCode("USER_002", "error.user.deleted");
-
-    public UserNotFoundException(ErrorCode errorCode) {
-        super(HttpStatus.NOT_FOUND, errorCode);
-    }
 }
-```
-
-### Error Code/Response Class Resolution (2-level priority)
-
-1. **DSL explicit** — `errorCodeClass` / `errorResponseClass` in build.gradle
-2. **Framework default** — `one.axim.framework.rest.exception.ErrorCode` / `one.axim.framework.rest.model.ApiError`
-
-### Linking Errors to APIs
-
-Use `@error` / `@throws` Javadoc tags or method `throws` clause:
-
-```java
-/**
- * 사용자 상세 조회
- * @error UserNotFoundException
- */
-@GetMapping("/users/{id}")
-public UserDto getUser(@PathVariable Long id) { ... }
-
-// Or: auto-detected from throws clause
-@GetMapping("/users/{id}/status")
-public UserStatus getUserStatus(@PathVariable Long id) throws AuthException { ... }
 ```
 
 ## Pagination Support
@@ -232,27 +255,25 @@ Spring Data `Pageable`/`Page<T>` are auto-recognized:
 public Page<UserDto> getUsers(Pageable pageable) { ... }
 ```
 
-Auto-generated:
-- **Query params:** `page` (default: 0), `size` (default: 20), `sort`
-- **Response model:** `content`, `totalElements`, `totalPages`, `size`, `number`, `numberOfElements`, `first`, `last`, `empty`, `sort`
-- **API JSON:** `isPaging: true`, `pagingType: "spring"`
-
 ## ApiResult Wrapper Unwrapping
 
 `ApiResult<T>` wrapper types are auto-unwrapped:
 
 ```java
-// Single → returnClass: "UserDto"
-public ApiResult<UserDto> getUser() { ... }
-
-// List → returnClass: "UserDto", isArrayReturn: true
-public ApiResult<List<UserDto>> getUsers() { ... }
-
-// Paging → returnClass: "UserDto", isPaging: true, pagingType: "spring"
-public ApiResult<Page<UserDto>> getUsersPaged(Pageable pageable) { ... }
+public ApiResult<UserDto> getUser() { ... }           // → returnClass: "UserDto"
+public ApiResult<List<UserDto>> getUsers() { ... }     // → isArrayReturn: true
+public ApiResult<Page<UserDto>> getUsersPaged() { ... } // → isPaging: true
 ```
 
-## Running the Plugin
+## Auth DSL Types (v2.0.7+)
+
+| Type | Config | OpenAPI mapping |
+|------|--------|-----------------|
+| API Key | `type='apiKey'`, `in='header'`, `headerKey='X-Token'` | `{ type: "apiKey", in: "header", name: "X-Token" }` |
+| Bearer | `type='http'`, `scheme='bearer'`, `bearerFormat='JWT'` | `{ type: "http", scheme: "bearer" }` |
+| Basic | `type='http'`, `scheme='basic'` | `{ type: "http", scheme: "basic" }` |
+
+## Running
 
 ```bash
 ./gradlew restMetaGenerator
@@ -264,7 +285,7 @@ public ApiResult<Page<UserDto>> getUsersPaged(Pageable pageable) { ... }
 build/docs/
 ├── {serviceId}.json          # Service definition
 ├── openapi.json              # OpenAPI 3.0.3 spec
-├── spec-bundle.json          # Integrated bundle (service + APIs + models + errors)
+├── spec-bundle.json          # Integrated bundle
 ├── api/
 │   └── {ControllerName}.json # Per-controller API definitions
 ├── model/
@@ -274,72 +295,14 @@ build/docs/
     └── error-response.json   # Error response model structure
 ```
 
-## spec-bundle.json Structure
-
-The bundle JSON combines all outputs into a single file for UI consumption:
-
-```json
-{
-  "service": {
-    "serviceId": "my-service",
-    "name": "My Service",
-    "apiServerUrl": "https://api.example.com",
-    "version": "v1.0",
-    "introduction": "...",
-    "auth": { "type": "token", "headerKey": "Authorization", ... },
-    "headers": [...]
-  },
-  "apis": [
-    {
-      "id": "getUser",
-      "name": "사용자 조회",
-      "method": "GET",
-      "urlMapping": "/users/{id}",
-      "returnClass": "com.example.dto.UserDto",
-      "parameters": [...],
-      "responseStatus": { "200": "성공", "404": "사용자를 찾을 수 없음" },
-      "errors": [{ "exception": "UserNotFoundException", "status": 404, "codes": [...] }]
-    }
-  ],
-  "models": {
-    "com.example.dto.UserDto": {
-      "name": "UserDto",
-      "type": "Object",
-      "fields": [{ "name": "id", "type": "Long" }, ...]
-    }
-  },
-  "errors": [
-    {
-      "group": "User Not Found",
-      "exception": "UserNotFoundException",
-      "status": 404,
-      "codes": [{ "code": "USER_001", "name": "USER_NOT_FOUND", "message": "..." }]
-    }
-  ],
-  "errorResponse": {
-    "name": "ApiErrorResponse",
-    "type": "Object",
-    "fields": [...]
-  }
-}
-```
-
-## Execution Pipeline
-
-The `restMetaGenerator` task runs in this order:
-
-1. **Error Code Scan** — Collect ErrorCode fields from Exception classes
-2. **API Document Generation** — Scan `@RestController` → generate per-controller/model JSON
-3. **Error JSON Write** — Output `errors.json` + `error-response.json`
-4. **OpenAPI Spec** — Generate `openapi.json` (OpenAPI 3.0.3)
-5. **Spec Bundle** — Generate `spec-bundle.json`
-6. **Postman Sync** — Sync Collection/Environment (if configured)
-
 ## Changelog
 
-- **v2.0.7** — Auth DSL extension: `apiKey`/`http` (Bearer/Basic) support for OpenAPI securitySchemes and Postman auth
-- **v2.0.6** — Fixed empty version causing `//path`, fixed ArrayIndexOutOfBoundsException for path-less mappings
-- **v2.0.5** — Added `errorResponseClass` DSL property
-- **v2.0.4** — OpenAPI 3.0.3, spec-bundle.json, error code scanning, @error/@throws tags
-- **v2.0.3** — Fixed inner class enum ClassNotFoundException
-- **v2.0.2** — Spring Pageable/Page<T> recognition, ApiResult<T> unwrapping
+- **v2.1.4** — Fix Set/Collection mapped as string → now correctly array + items
+- **v2.1.3** — Fix query param enum model, add @Size(min=1) required, NPE guard
+- **v2.1.2** — Fix missing schema for classes outside basePackage
+- **v2.1.1** — `@XApiIgnore` annotation, `excludePackages`/`excludeClasses` DSL
+- **v2.1.0** — 8 OpenAPI improvements (query param expansion, operationId, enum, required, ApiError, DateTime, BigDecimal, examples)
+- **v2.0.7** — Auth DSL: Bearer/Basic support, OpenAPI securitySchemes
+- **v2.0.6** — Fix empty version, path-less mapping bug
+- **v2.0.5** — `errorResponseClass` DSL property
+- **v2.0.4** — OpenAPI 3.0.3, spec-bundle.json, error code scanning
